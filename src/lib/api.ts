@@ -67,6 +67,7 @@ export const api = {
     request<{ success: boolean }>(`/api/templates/${id}`, { method: 'DELETE' }),
   setTemplateDefault: (id: string) =>
     request<Template>(`/api/templates/${id}/set-default`, { method: 'PATCH' }),
+  getTemplatePdfPreview: (id: string) => requestFile(`/api/templates/${id}/preview-pdf`),
 
   // Documents
   uploadDocument: (data: FormData) => {

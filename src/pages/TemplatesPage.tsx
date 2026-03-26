@@ -16,6 +16,10 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [previewTab, setPreviewTab] = useState<'pdf' | 'source'>('pdf');
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // Upload form state
   const [uploadName, setUploadName] = useState('');
@@ -73,12 +77,39 @@ export default function TemplatesPage() {
   };
 
   const handlePreview = async (templateId: string) => {
+    setPreviewTab('pdf');
+    setPdfError(null);
+    setPreviewPdfUrl(null);
+    setPdfLoading(true);
     try {
-      const tmpl = await api.getTemplate(templateId);
-      setPreviewTemplate(tmpl);
+      const [tmpl, pdfBlob] = await Promise.allSettled([
+        api.getTemplate(templateId),
+        api.getTemplatePdfPreview(templateId),
+      ]);
+      if (tmpl.status === 'fulfilled') {
+        setPreviewTemplate(tmpl.value);
+      } else {
+        toast.error('Failed to load template');
+        return;
+      }
+      if (pdfBlob.status === 'fulfilled') {
+        setPreviewPdfUrl(URL.createObjectURL(pdfBlob.value));
+      } else {
+        setPdfError('PDF preview unavailable — pdflatex may not be installed');
+        setPreviewTab('source');
+      }
     } catch {
       toast.error('Failed to load template');
+    } finally {
+      setPdfLoading(false);
     }
+  };
+
+  const handleClosePreview = () => {
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewTemplate(null);
+    setPreviewPdfUrl(null);
+    setPdfError(null);
   };
 
   const handleUpload = async () => {
@@ -297,16 +328,57 @@ export default function TemplatesPage() {
       </Dialog>
 
       {/* Preview dialog */}
-      <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
-        <DialogContent className="max-w-3xl">
+      <Dialog open={!!previewTemplate} onOpenChange={handleClosePreview}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{previewTemplate?.name}</DialogTitle>
           </DialogHeader>
-          <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[60vh] font-mono whitespace-pre-wrap">
-            {previewTemplate?.latex_content}
-          </pre>
+          <div className="flex gap-2 border-b pb-2">
+            <Button
+              variant={previewTab === 'pdf' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setPreviewTab('pdf')}
+            >
+              PDF Preview
+            </Button>
+            <Button
+              variant={previewTab === 'source' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setPreviewTab('source')}
+            >
+              LaTeX Source
+            </Button>
+          </div>
+          {previewTab === 'pdf' ? (
+            <div className="w-full h-[70vh]">
+              {pdfLoading ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                  Compiling PDF...
+                </div>
+              ) : pdfError ? (
+                <div className="space-y-3">
+                  <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                    {pdfError}
+                  </div>
+                  <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[60vh] font-mono whitespace-pre-wrap">
+                    {previewTemplate?.latex_content}
+                  </pre>
+                </div>
+              ) : previewPdfUrl ? (
+                <iframe
+                  src={previewPdfUrl}
+                  className="w-full h-full rounded border"
+                  title="PDF Preview"
+                />
+              ) : null}
+            </div>
+          ) : (
+            <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[70vh] font-mono whitespace-pre-wrap">
+              {previewTemplate?.latex_content}
+            </pre>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPreviewTemplate(null)}>Close</Button>
+            <Button variant="outline" onClick={handleClosePreview}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

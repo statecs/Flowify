@@ -3,6 +3,9 @@ import cors from 'cors';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { pool, initDatabase, RowDataPacket, ResultSetHeader } from './db';
@@ -10,6 +13,8 @@ import { logger } from './logger';
 import { enqueue } from './processingQueue';
 import { processDocument } from './services/documentProcessor';
 import { renderTemplate, saveOutput } from './services/templateService';
+
+const execAsync = promisify(exec);
 
 dotenv.config();
 
@@ -210,6 +215,77 @@ app.patch('/api/templates/:id/set-default', requireApiKey, async (req, res) => {
   } catch (error) {
     logger.error('[PATCH /api/templates/:id/set-default]', error);
     res.status(500).json({ error: 'Failed to update default template' });
+  }
+});
+
+app.get('/api/templates/:id/preview-pdf', requireApiKey, async (req, res) => {
+  const tmpDir = path.join(os.tmpdir(), crypto.randomUUID());
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT document_type_id FROM templates WHERE id = ?',
+      [req.params.id]
+    );
+    if (!rows.length) { res.status(404).json({ error: 'Template not found' }); return; }
+
+    const [dtRows] = await pool.query<RowDataPacket[]>(
+      'SELECT name FROM document_types WHERE id = ?',
+      [rows[0].document_type_id]
+    );
+    const docTypeName = dtRows[0]?.name ?? 'cv';
+
+    const sampleDataByType: Record<string, unknown> = {
+      cv: {
+        name: 'Jane Smith',
+        subtitle: 'Senior Software Engineer',
+        work_experience: [{
+          title: 'Lead Engineer',
+          company: 'Acme Corp',
+          date_range: 'Jan 2020 – Present',
+          description: 'Led a team building scalable cloud infrastructure.',
+          bullet_points: ['Designed microservices architecture', 'Reduced deploy time by 60%'],
+        }],
+        education: [{
+          degree: 'BSc Computer Science',
+          institution: 'University of Technology',
+          date_range: '2014 – 2018',
+        }],
+        skills: {
+          Methods: 'Agile, Scrum',
+          Tools: 'Git, Docker',
+          Tech: 'TypeScript, Python',
+          Standards: 'REST, GraphQL',
+          Languages: 'English (Native)',
+        },
+        portfolio: [{ label: 'GitHub', url: 'github.com/janesmith' }],
+      },
+    };
+
+    const sampleData = sampleDataByType[docTypeName] ?? sampleDataByType['cv'];
+    const latexContent = await renderTemplate(req.params.id, sampleData as Record<string, unknown>);
+
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const texPath = path.join(tmpDir, 'preview.tex');
+    fs.writeFileSync(texPath, latexContent, 'utf-8');
+
+    await execAsync(
+      `pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texPath}`
+    );
+
+    const pdfPath = path.join(tmpDir, 'preview.pdf');
+    if (!fs.existsSync(pdfPath)) {
+      res.status(503).json({ error: 'LaTeX compilation failed: PDF not produced' });
+      return;
+    }
+
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    logger.error('[GET /api/templates/:id/preview-pdf]', error);
+    res.status(503).json({ error: `LaTeX compilation failed: ${error.message ?? error}` });
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
 });
 
