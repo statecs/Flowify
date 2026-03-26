@@ -26,7 +26,7 @@ fs.mkdirSync(path.join(UPLOAD_DIR, 'pages'), { recursive: true });
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key']
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -186,6 +186,30 @@ app.delete('/api/templates/:id', requireApiKey, async (req, res) => {
   } catch (error) {
     logger.error('[DELETE /api/templates/:id]', error);
     res.status(500).json({ error: 'Failed to delete template' });
+  }
+});
+
+app.patch('/api/templates/:id/set-default', requireApiKey, async (req, res) => {
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, document_type_id, name, description, is_default, created_at FROM templates WHERE id = ?',
+      [req.params.id]
+    );
+    if (!rows.length) {
+      res.status(404).json({ error: 'Template not found' });
+      return;
+    }
+    const { document_type_id } = rows[0];
+    await pool.execute('UPDATE templates SET is_default = 0 WHERE document_type_id = ?', [document_type_id]);
+    await pool.execute('UPDATE templates SET is_default = 1 WHERE id = ?', [req.params.id]);
+    const [updated] = await pool.query<RowDataPacket[]>(
+      'SELECT id, document_type_id, name, description, is_default, created_at FROM templates WHERE id = ?',
+      [req.params.id]
+    );
+    res.json(updated[0]);
+  } catch (error) {
+    logger.error('[PATCH /api/templates/:id/set-default]', error);
+    res.status(500).json({ error: 'Failed to update default template' });
   }
 });
 

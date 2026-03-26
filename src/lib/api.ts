@@ -65,6 +65,8 @@ export const api = {
   },
   deleteTemplate: (id: string) =>
     request<{ success: boolean }>(`/api/templates/${id}`, { method: 'DELETE' }),
+  setTemplateDefault: (id: string) =>
+    request<Template>(`/api/templates/${id}/set-default`, { method: 'PATCH' }),
 
   // Documents
   uploadDocument: (data: FormData) => {

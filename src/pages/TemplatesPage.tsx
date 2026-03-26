@@ -8,7 +8,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Trash2, Eye, FileText } from 'lucide-react';
+import { Plus, Trash2, Eye, FileText, Star } from 'lucide-react';
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -46,6 +46,20 @@ export default function TemplatesPage() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const handleSetDefault = async (id: string) => {
+    try {
+      const updated = await api.setTemplateDefault(id);
+      setTemplates(prev => prev.map(t =>
+        t.document_type_id === updated.document_type_id
+          ? { ...t, is_default: t.id === id ? 1 : 0 }
+          : t
+      ));
+      toast.success('Default template updated');
+    } catch {
+      toast.error('Failed to set default template');
+    }
+  };
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete template "${name}"?`)) return;
@@ -166,6 +180,16 @@ export default function TemplatesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
+                            {!tmpl.is_default && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleSetDefault(tmpl.id)}
+                              >
+                                <Star className="h-4 w-4 mr-1" />
+                                Set Default
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
