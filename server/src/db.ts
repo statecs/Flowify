@@ -260,6 +260,15 @@ export async function initDatabase(): Promise<void> {
       if (err.errno !== 1060) throw err; // 1060 = ER_DUP_FIELDNAME — already exists
     }
 
+    // Idempotent migration: add photo_path column if not exists
+    try {
+      await pool.execute(
+        `ALTER TABLE documents ADD COLUMN photo_path VARCHAR(1000) NULL DEFAULT NULL`
+      );
+    } catch (err: any) {
+      if (err.errno !== 1060) throw err; // 1060 = ER_DUP_FIELDNAME
+    }
+
     // Seed document types
     for (const dt of SEED_DOCUMENT_TYPES) {
       await pool.execute(

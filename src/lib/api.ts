@@ -129,6 +129,24 @@ export const api = {
   getOutputs: () => request<Output[]>('/api/outputs'),
   reprocessDocument: (id: string) =>
     request<{ id: string; status: string }>(`/api/documents/${id}/reprocess`, { method: 'POST' }),
+  getDocumentPhoto: (documentId: string) =>
+    requestFile(`/api/documents/${documentId}/photo`),
+  uploadDocumentPhoto: (documentId: string, file: File) => {
+    const key = localStorage.getItem('flowify_api_key') || '';
+    const data = new FormData();
+    data.append('photo', file);
+    return fetch(`${API_URL}/api/documents/${documentId}/photo`, {
+      method: 'POST',
+      headers: { 'x-api-key': key },
+      body: data,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        throw new ApiError(res.status, body.error || res.statusText);
+      }
+      return res.json() as Promise<{ photo_path: string }>;
+    });
+  },
 };
 
 // Types
@@ -165,6 +183,7 @@ export interface DocumentSummary {
   document_type_name: string;
   document_type_label: string;
   preferred_template_id: string | null;
+  photo_path: string | null;
   original_filename: string;
   file_mime: string;
   file_size: number;

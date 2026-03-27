@@ -71,6 +71,16 @@ router.get('/:id/output-pdf', requireApiKey, async (req, res) => {
     const texPath = path.join(tmpDir, 'output.tex');
     fs.writeFileSync(texPath, latexContent, 'utf-8');
 
+    // Copy profile photo into tmpDir so \IfFileExists{photo.jpg}{...}{} resolves
+    const [docRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT d.photo_path FROM outputs o JOIN documents d ON o.document_id = d.id WHERE o.document_id = ? ORDER BY o.created_at DESC LIMIT 1`,
+      [req.params.id]
+    );
+    const photoPath = docRows[0]?.photo_path;
+    if (photoPath && fs.existsSync(photoPath)) {
+      fs.copyFileSync(photoPath, path.join(tmpDir, 'photo.jpg'));
+    }
+
     await execAsync(
       `pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texPath}`
     );

@@ -48,6 +48,79 @@ async function convertPdfToImages(buffer: Buffer, outputDir: string): Promise<st
   return paths;
 }
 
+async function extractPhotoFromPdf(pdfBuffer: Buffer, documentId: string): Promise<void> {
+  const uploadDir = process.env.UPLOAD_DIR || './uploads';
+  const photosDir = path.join(uploadDir, 'photos');
+  fs.mkdirSync(photosDir, { recursive: true });
+
+  const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+  const sharp = require('sharp');
+
+  const pdfDoc = await pdfjsLib.getDocument({
+    data: new Uint8Array(pdfBuffer),
+    canvasFactory: new NapiCanvasFactory(),
+  }).promise;
+
+  const OPS = pdfjsLib.OPS;
+  let bestImage: { data: Uint8ClampedArray | Uint8Array; width: number; height: number } | null = null;
+  let bestScore = 0;
+
+  const maxPages = Math.min(pdfDoc.numPages, 3);
+  for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+    const page = await pdfDoc.getPage(pageNum);
+    const opList = await page.getOperatorList();
+
+    const imageNames = new Set<string>();
+    for (let i = 0; i < opList.fnArray.length; i++) {
+      if (opList.fnArray[i] === OPS.paintImageXObject) {
+        imageNames.add(opList.argsArray[i][0]);
+      }
+    }
+
+    for (const name of imageNames) {
+      const imgData = await new Promise<any>((resolve) => {
+        try {
+          page.objs.get(name, (data: any) => resolve(data));
+        } catch {
+          resolve(null);
+        }
+      });
+
+      if (!imgData || !imgData.data || !imgData.width || !imgData.height) continue;
+
+      const { width, height } = imgData;
+      if (width < 80 || height < 80) continue;
+      if (width / height > 2.5) continue; // skip wide landscape images (logos, banners)
+
+      const score = width * height;
+      if (score > bestScore) {
+        bestScore = score;
+        bestImage = imgData;
+      }
+    }
+
+    page.cleanup();
+  }
+
+  if (!bestImage) {
+    logger.log(`[Processor] No suitable photo found in document ${documentId}`);
+    return;
+  }
+
+  const photoPath = path.join(photosDir, `${documentId}.jpg`);
+  const pixelCount = bestImage.width * bestImage.height;
+  const channels = Math.max(3, Math.min(4, Math.round(bestImage.data.length / pixelCount)));
+
+  await sharp(Buffer.from(bestImage.data), {
+    raw: { width: bestImage.width, height: bestImage.height, channels },
+  })
+  .jpeg({ quality: 90 })
+  .toFile(photoPath);
+
+  await pool.execute('UPDATE documents SET photo_path = ? WHERE id = ?', [photoPath, documentId]);
+  logger.log(`[Processor] Extracted photo for document ${documentId} → ${photoPath}`);
+}
+
 async function createWhitePlaceholder(outputDir: string): Promise<string> {
   const sharp = require('sharp');
   const placeholderPath = path.join(outputDir, 'page.1.png');
@@ -103,6 +176,13 @@ export async function processDocument(documentId: string): Promise<void> {
         imagePaths = await convertPdfToImages(pdfBuffer, pagesDir);
       } catch (e) {
         logger.error(`[Processor] PDF to image conversion failed:`, e);
+      }
+
+      // Best-effort photo extraction — failure must not abort processing
+      try {
+        await extractPhotoFromPdf(pdfBuffer, documentId);
+      } catch (e) {
+        logger.error(`[Processor] Photo extraction failed (non-fatal):`, e);
       }
     } else if (
       doc.file_mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

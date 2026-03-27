@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, ApiError, DocumentDetail, FieldDefinition } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -218,6 +218,10 @@ export default function ReviewPage() {
   const [isOutputDirty, setIsOutputDirty] = useState(false);
   const [isSavingOutput, setIsSavingOutput] = useState(false);
 
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!id) return;
     api.getDocument(id).then(d => {
@@ -268,6 +272,41 @@ export default function ReviewPage() {
   useEffect(() => {
     return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
   }, [pdfUrl]);
+
+  useEffect(() => {
+    return () => { if (photoUrl) URL.revokeObjectURL(photoUrl); };
+  }, [photoUrl]);
+
+  // Load profile photo if one was extracted
+  useEffect(() => {
+    if (!id || !doc?.photo_path) return;
+    api.getDocumentPhoto(id).then(blob => {
+      setPhotoUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+    }).catch(() => { /* no photo on disk */ });
+  }, [id, doc?.photo_path]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setPhotoUploading(true);
+    try {
+      await api.uploadDocumentPhoto(id, file);
+      const blob = await api.getDocumentPhoto(id);
+      setPhotoUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+      toast.success('Photo updated');
+    } catch {
+      toast.error('Failed to upload photo');
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
 
   const handleSave = async () => {
     if (!id) return;
@@ -544,6 +583,43 @@ export default function ReviewPage() {
                 </p>
               )}
             </div>
+
+            {/* Profile Photo — CV documents only */}
+            {doc.document_type_name === 'cv' && (
+              <div className="space-y-2">
+                <Label>Profile Photo</Label>
+                <div className="flex items-center gap-4">
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt="Profile"
+                      className="w-20 h-20 rounded-full object-cover border shadow-sm shrink-0"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border text-muted-foreground text-xs text-center leading-tight shrink-0">
+                      No photo
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    <button
+                      className="text-sm underline text-foreground hover:text-primary disabled:opacity-50 text-left"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={photoUploading}
+                    >
+                      {photoUploading ? 'Uploading…' : photoUrl ? 'Replace photo' : 'Add photo'}
+                    </button>
+                    <p className="text-xs text-muted-foreground">JPEG or PNG</p>
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {schema.map((field: FieldDefinition) => (
               <div key={field.key} className="space-y-2">

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import multer from 'multer';
 import { pool, RowDataPacket, ResultSetHeader } from '../db';
 import { logger } from '../logger';
 import { requireApiKey } from '../middleware/auth';
@@ -9,6 +10,15 @@ import { documentUpload } from '../middleware/upload';
 import { UPLOAD_DIR } from '../config';
 import { enqueue } from '../processingQueue';
 import { processDocument } from '../services/documentProcessor';
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') cb(null, true);
+    else cb(new Error('Only JPEG and PNG images are accepted'));
+  },
+});
 
 const router = Router();
 
@@ -187,6 +197,50 @@ router.put('/:id/extraction', requireApiKey, async (req, res) => {
   } catch (error) {
     logger.error('[PUT /api/documents/:id/extraction]', error);
     res.status(500).json({ error: 'Failed to update extraction' });
+  }
+});
+
+// GET /api/documents/:id/photo — stream the profile photo
+router.get('/:id/photo', requireApiKey, async (req, res) => {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    'SELECT photo_path FROM documents WHERE id = ?',
+    [req.params.id]
+  );
+  if (!rows[0]?.photo_path) return res.status(404).json({ error: 'No photo' });
+  const photoPath = rows[0].photo_path;
+  if (!fs.existsSync(photoPath)) return res.status(404).json({ error: 'Photo file not found' });
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(photoPath).pipe(res);
+});
+
+// POST /api/documents/:id/photo — replace/upload profile photo
+router.post('/:id/photo', requireApiKey, photoUpload.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    'SELECT id FROM documents WHERE id = ?',
+    [req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Document not found' });
+
+  try {
+    const sharp = require('sharp');
+    const photosDir = path.join(UPLOAD_DIR, 'photos');
+    fs.mkdirSync(photosDir, { recursive: true });
+
+    const photoPath = path.join(photosDir, `${req.params.id}.jpg`);
+    await sharp(req.file.buffer).jpeg({ quality: 90 }).toFile(photoPath);
+
+    await pool.execute(
+      'UPDATE documents SET photo_path = ? WHERE id = ?',
+      [photoPath, req.params.id]
+    );
+
+    res.json({ photo_path: photoPath });
+  } catch (error) {
+    logger.error('[POST /api/documents/:id/photo]', error);
+    res.status(500).json({ error: 'Failed to save photo' });
   }
 });
 
