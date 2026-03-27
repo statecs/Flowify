@@ -155,6 +155,7 @@ export interface DocumentSummary {
   document_type_id: string;
   document_type_name: string;
   document_type_label: string;
+  preferred_template_id: string | null;
   original_filename: string;
   file_mime: string;
   file_size: number;

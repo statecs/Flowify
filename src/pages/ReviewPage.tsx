@@ -264,9 +264,12 @@ export default function ReviewPage() {
     if (!doc) return;
     api.getTemplates(doc.document_type_id).then(tmpls => {
       setTemplates(tmpls);
+      const preferred = doc.preferred_template_id
+        ? tmpls.find(t => t.id === doc.preferred_template_id)
+        : null;
       const def = tmpls.find(t => t.is_default);
-      if (def) setSelectedTemplate(def.id);
-      else if (tmpls.length > 0) setSelectedTemplate(tmpls[0].id);
+      const pick = preferred ?? def ?? tmpls[0];
+      if (pick) setSelectedTemplate(pick.id);
       setAcceptDialogOpen(true);
     }).catch(() => toast.error('Failed to load templates'));
   };

@@ -14,7 +14,7 @@ const router = Router();
 
 router.post('/upload', requireApiKey, documentUpload.single('file'), async (req, res) => {
   if (!req.file) { res.status(400).json({ error: 'No file uploaded' }); return; }
-  const { document_type_id } = req.body;
+  const { document_type_id, preferred_template_id } = req.body;
   if (!document_type_id) { res.status(400).json({ error: 'document_type_id is required' }); return; }
 
   try {
@@ -26,8 +26,8 @@ router.post('/upload', requireApiKey, documentUpload.single('file'), async (req,
 
     const docId = crypto.randomUUID();
     await pool.execute(
-      'INSERT INTO documents (id, document_type_id, original_filename, file_path, file_mime, file_size, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [docId, document_type_id, req.file.originalname, req.file.path, req.file.mimetype, req.file.size, 'uploaded']
+      'INSERT INTO documents (id, document_type_id, preferred_template_id, original_filename, file_path, file_mime, file_size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [docId, document_type_id, preferred_template_id || null, req.file.originalname, req.file.path, req.file.mimetype, req.file.size, 'uploaded']
     );
 
     // Enqueue processing

@@ -7,12 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Upload, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import TemplateSelector from '@/components/TemplateSelector';
 
 const MAX_SIZE_MB = 50;
 
 export default function UploadPage() {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [selectedType, setSelectedType] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -65,6 +67,7 @@ export default function UploadPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('document_type_id', selectedType);
+      if (selectedTemplate) formData.append('preferred_template_id', selectedTemplate);
       const result = await api.uploadDocument(formData);
       toast.success('Document uploaded — processing started');
       navigate('/');
@@ -86,7 +89,7 @@ export default function UploadPage() {
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Document Type</Label>
-          <Select value={selectedType} onValueChange={setSelectedType}>
+          <Select value={selectedType} onValueChange={(val) => { setSelectedType(val); setSelectedTemplate(''); }}>
             <SelectTrigger>
               <SelectValue placeholder="Select document type..." />
             </SelectTrigger>
@@ -97,6 +100,17 @@ export default function UploadPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {selectedType && (
+          <div className="space-y-2">
+            <Label>Template <span className="text-xs text-muted-foreground font-normal">(optional)</span></Label>
+            <TemplateSelector
+              documentTypeId={selectedType}
+              value={selectedTemplate}
+              onChange={setSelectedTemplate}
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>File</Label>

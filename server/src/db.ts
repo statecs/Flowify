@@ -250,6 +250,15 @@ export async function initDatabase(): Promise<void> {
       )
     `);
 
+    // Idempotent migration: add preferred_template_id column if not exists
+    try {
+      await pool.execute(
+        `ALTER TABLE documents ADD COLUMN preferred_template_id CHAR(36) NULL DEFAULT NULL`
+      );
+    } catch (err: any) {
+      if (err.errno !== 1060) throw err; // 1060 = ER_DUP_FIELDNAME — already exists
+    }
+
     // Seed document types
     for (const dt of SEED_DOCUMENT_TYPES) {
       await pool.execute(
