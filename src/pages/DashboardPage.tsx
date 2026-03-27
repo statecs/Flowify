@@ -198,22 +198,23 @@ export default function DashboardPage() {
                     <span className="text-muted-foreground">{doc.document_type_label}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={doc.status} />
+                    <div className="flex flex-col items-start gap-1">
+                      <StatusBadge status={doc.status} />
+                      {doc.status === 'generated' && (
+                        <button
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                          onClick={() => handleOpenOutputPreview(doc)}
+                        >
+                          <FileOutput className="h-3 w-3" />
+                          View Output
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{formatBytes(doc.file_size)}</td>
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(doc.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {doc.status === 'generated' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenOutputPreview(doc)}
-                        >
-                          <FileOutput className="h-4 w-4 mr-1" />
-                          View Output
-                        </Button>
-                      )}
                       {(doc.status === 'reviewing' || doc.status === 'accepted' || doc.status === 'generated') && (
                         <Button
                           variant="ghost"
