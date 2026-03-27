@@ -35,7 +35,8 @@ Rules:
 - For work experience and education, extract ALL entries found
 - For skills in a CV, group them by category using the keys: Methods, Tools, Tech, Standards, Languages (spoken/human languages only — not programming languages). The document may be in any language — map localized headings to these English keys semantically (e.g. Swedish: Metodik→Methods, Verktyg→Tools, Programmeringsspråk→Tech, Databaser→Tech, Operativsystem→Tech, Övrigt→Standards, Språk→Languages)
 - The document may be written in any language. Always map section headings and field labels to their English equivalents semantically — do not skip sections just because their headings are not in English
-- For description and summary fields, include ALL paragraphs verbatim — never truncate or summarise multi-paragraph content`;
+- For description and summary fields, include ALL paragraphs verbatim — never truncate or summarise multi-paragraph content
+- For work experience bullet_points: extract any per-job subsections that list tools, technologies, responsibilities, or achievements as individual bullet point strings. These subsections may appear with any heading in any language — common Swedish examples include "Teknisk miljö/verktyg:", "Teknisk miljö:", "Verktyg:", "Arbetsuppgifter:", "Ansvarsområden:". If the subsection is a comma-separated list (e.g. "C#, MySQL, Git"), split it into individual strings, one per item. If it contains actual list items or bullets, extract each as a separate string.`;
 }
 
 export function buildExtractionUser(rawText: string): string {
