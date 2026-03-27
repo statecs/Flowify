@@ -7,7 +7,7 @@
 \usepackage{xcolor}
 \usepackage{titlesec}
 \usepackage{array}
-\usepackage{tabularx}
+% (tabularx removed — using minipages and tabular instead)
 \setlength{\parskip}{6pt plus 2pt minus 1pt}
 \setlength{\parindent}{0pt}
 \usepackage{enumitem}
@@ -39,9 +39,7 @@
 % ─── No Page Numbers ──────────────────────────────────────────────────────────
 \pagestyle{empty}
 
-% ─── Column widths ────────────────────────────────────────────────────────────
-\newcolumntype{D}{>{\raggedright\small\color{lightgray}}p{2.8cm}}
-\newcolumntype{C}{>{\raggedright}X}
+% ─── (no custom column types needed) ─────────────────────────────────────────
 
 % ══════════════════════════════════════════════════════════════════════════════
 \begin{document}
@@ -58,33 +56,42 @@
 % ─── Work Experience ──────────────────────────────────────────────────────────
 \section{Relevant Experience}
 
-\begin{tabularx}{\linewidth}{D C}
-{{#work_experience}}\textit{ {{date_range}} } &
-  \textbf{ {{title}} }\textit{ $|$ {{company}} }\\
-& {{description}}
-\begin{itemize}[nosep, leftmargin=1em, topsep=0pt, partopsep=0pt]
-{{#bullet_points}}\item {{.}} {{/bullet_points}}\end{itemize}\\[0.4em]
-{{/work_experience}}\end{tabularx}
+{{#work_experience}}
+\noindent
+\begin{minipage}[t]{2.8cm}\raggedright\small\color{lightgray}\textit{ {{date_range}} }\end{minipage}%
+\begin{minipage}[t]{\dimexpr\linewidth-2.8cm\relax}\raggedright
+  \textbf{ {{title}} }\textit{ $|$ {{company}} }\\[0.3em]
+  {{description}}
+  \begin{itemize}[nosep, leftmargin=1em, topsep=0pt, partopsep=0pt]
+  {{#bullet_points}}\item {{.}} {{/bullet_points}}
+  \end{itemize}
+\end{minipage}
+\vspace{0.4em}
+{{/work_experience}}
 
 % ─── Skills ───────────────────────────────────────────────────────────────────
 \section{Specialist Expertise}
 
-\begin{tabularx}{\linewidth}{>{\bfseries\color{navyblue}}p{3.2cm} X}
+\begin{tabular}{>{\bfseries\color{navyblue}}p{3.2cm} p{\dimexpr\linewidth-3.8cm\relax}}
 Methods    & {{skills_Methods}} \\[0.3em]
 Tools      & {{skills_Tools}} \\[0.3em]
 Tech       & {{skills_Tech}} \\[0.3em]
 Standards  & {{skills_Standards}} \\[0.3em]
-Languages  & {{skills_Languages}} \\
-\end{tabularx}
+Languages  & {{skills_Languages}}
+\end{tabular}
 
 % ─── Education ────────────────────────────────────────────────────────────────
 \section{Education}
 
-\begin{tabularx}{\linewidth}{D C}
-{{#education}}\textit{ {{date_range}} } &
+{{#education}}
+\noindent
+\begin{minipage}[t]{2.8cm}\raggedright\small\color{lightgray}\textit{ {{date_range}} }\end{minipage}%
+\begin{minipage}[t]{\dimexpr\linewidth-2.8cm\relax}\raggedright
   \textbf{ {{degree}} }\\
-& {{institution}} \\[0.5em]
-{{/education}}\end{tabularx}
+  {{institution}}
+\end{minipage}
+\vspace{0.5em}
+{{/education}}
 
 % ─── Portfolio ────────────────────────────────────────────────────────────────
 {{#portfolio}}
