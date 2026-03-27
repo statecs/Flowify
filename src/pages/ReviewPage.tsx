@@ -201,6 +201,7 @@ export default function ReviewPage() {
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
@@ -217,6 +218,11 @@ export default function ReviewPage() {
           ? JSON.parse(d.extraction.fields)
           : d.extraction.fields;
         setFields(f);
+      }
+      if (d.file_mime === 'application/pdf') {
+        api.getDocumentFile(id).then(blob => {
+          setPdfUrl(URL.createObjectURL(blob));
+        }).catch(() => {/* fall through to image viewer */});
       }
     }).catch(() => toast.error('Failed to load document'));
   }, [id]);
@@ -242,10 +248,14 @@ export default function ReviewPage() {
     }
   }, [doc, currentPage, loadPageImage]);
 
-  // Cleanup blob URL on unmount
+  // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => { if (pageImageUrl) URL.revokeObjectURL(pageImageUrl); };
   }, [pageImageUrl]);
+
+  useEffect(() => {
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
+  }, [pdfUrl]);
 
   const handleSave = async () => {
     if (!id) return;
@@ -351,63 +361,75 @@ export default function ReviewPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Page viewer */}
         <div className="w-1/2 border-r flex flex-col bg-muted/20 overflow-hidden">
-          {/* Page nav */}
-          {doc.pages.length > 0 && (
-            <div className="border-b px-4 py-2 flex items-center gap-3 bg-card shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {doc.pages.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={currentPage >= doc.pages.length}
-                onClick={() => setCurrentPage(p => p + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {/* Page image */}
-          <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
-            {pageImageUrl ? (
-              <img
-                src={pageImageUrl}
-                alt={`Page ${currentPage}`}
-                className="max-w-full shadow-md rounded border"
+          {pdfUrl ? (
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={pdfUrl}
+                className="w-full h-full border-0"
+                title="Document preview"
               />
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                {doc.pages.length === 0 ? 'No page images available' : 'Loading image...'}
-              </div>
-            )}
-          </div>
-
-          {/* Thumbnail strip */}
-          {doc.pages.length > 1 && (
-            <div className="border-t p-2 flex gap-2 overflow-x-auto shrink-0 bg-card">
-              {doc.pages.map(page => (
-                <button
-                  key={page.page_number}
-                  onClick={() => setCurrentPage(page.page_number)}
-                  className={`shrink-0 text-xs px-2 py-1 rounded border transition-colors ${
-                    currentPage === page.page_number
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card hover:bg-accent border-border'
-                  }`}
-                >
-                  {page.page_number}
-                </button>
-              ))}
             </div>
+          ) : (
+            <>
+              {/* Page nav */}
+              {doc.pages.length > 0 && (
+                <div className="border-b px-4 py-2 flex items-center gap-3 bg-card shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {doc.pages.length}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={currentPage >= doc.pages.length}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Page image */}
+              <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
+                {pageImageUrl ? (
+                  <img
+                    src={pageImageUrl}
+                    alt={`Page ${currentPage}`}
+                    className="max-w-full shadow-md rounded border"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    {doc.pages.length === 0 ? 'No preview available' : 'Loading…'}
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnail strip */}
+              {doc.pages.length > 1 && (
+                <div className="border-t p-2 flex gap-2 overflow-x-auto shrink-0 bg-card">
+                  {doc.pages.map(page => (
+                    <button
+                      key={page.page_number}
+                      onClick={() => setCurrentPage(page.page_number)}
+                      className={`shrink-0 text-xs px-2 py-1 rounded border transition-colors ${
+                        currentPage === page.page_number
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card hover:bg-accent border-border'
+                      }`}
+                    >
+                      {page.page_number}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

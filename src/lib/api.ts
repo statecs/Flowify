@@ -105,6 +105,8 @@ export const api = {
   getDocument: (id: string) => request<DocumentDetail>(`/api/documents/${id}`),
   deleteDocument: (id: string) =>
     request<{ success: boolean }>(`/api/documents/${id}`, { method: 'DELETE' }),
+  getDocumentFile: (documentId: string) =>
+    requestFile(`/api/documents/${documentId}/file`),
   getPageImage: (documentId: string, pageNumber: number) =>
     requestFile(`/api/documents/${documentId}/pages/${pageNumber}/image`),
   updateExtraction: (id: string, fields: Record<string, unknown>) =>

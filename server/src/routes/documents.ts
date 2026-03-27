@@ -133,6 +133,20 @@ router.delete('/:id', requireApiKey, async (req, res) => {
   }
 });
 
+// GET /api/documents/:id/file — stream the raw uploaded file
+router.get('/:id/file', requireApiKey, async (req, res) => {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    'SELECT file_path, file_mime, original_filename FROM documents WHERE id = ?',
+    [req.params.id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Not found' });
+  const { file_path, file_mime, original_filename } = rows[0];
+  if (!fs.existsSync(file_path)) return res.status(404).json({ error: 'File not found on disk' });
+  res.setHeader('Content-Type', file_mime);
+  res.setHeader('Content-Disposition', `inline; filename="${original_filename}"`);
+  fs.createReadStream(file_path).pipe(res);
+});
+
 router.get('/:id/pages/:n/image', requireApiKey, async (req, res) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
