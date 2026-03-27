@@ -105,7 +105,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden bg-card">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead className="border-b bg-muted/40">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Filename</th>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             <tbody>
               {documents.map((doc, i) => (
                 <tr key={doc.id} className={i > 0 ? 'border-t' : ''}>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 max-w-0 overflow-hidden">
                     <span className="font-medium truncate max-w-xs block" title={doc.original_filename}>
                       {doc.original_filename}
                     </span>

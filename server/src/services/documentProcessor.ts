@@ -5,11 +5,33 @@ import { pool, RowDataPacket } from '../db';
 import { extract } from './extractionService';
 import { logger } from '../logger';
 
+class NapiCanvasFactory {
+  create(width: number, height: number) {
+    const { createCanvas } = require('@napi-rs/canvas');
+    const canvas = createCanvas(width, height);
+    return { canvas, context: canvas.getContext('2d') };
+  }
+  reset(canvasAndContext: { canvas: any; context: any }, width: number, height: number) {
+    canvasAndContext.canvas.width = width;
+    canvasAndContext.canvas.height = height;
+    canvasAndContext.context = canvasAndContext.canvas.getContext('2d');
+  }
+  destroy(canvasAndContext: { canvas: any; context: any }) {
+    // Do NOT set canvas.width = 0 — that triggers an exclusive-reference error in
+    // @napi-rs/canvas. Just null the refs and let GC handle the native object.
+    canvasAndContext.canvas = null;
+    canvasAndContext.context = null;
+  }
+}
+
 async function convertPdfToImages(buffer: Buffer, outputDir: string): Promise<string[]> {
   const { createCanvas } = require('@napi-rs/canvas');
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
-  const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const doc = await pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    canvasFactory: new NapiCanvasFactory(),
+  }).promise;
   const paths: string[] = [];
 
   for (let i = 1; i <= doc.numPages; i++) {
