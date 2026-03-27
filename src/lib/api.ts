@@ -68,6 +68,11 @@ export const api = {
     request<{ success: boolean }>(`/api/templates/${id}`, { method: 'DELETE' }),
   setTemplateDefault: (id: string) =>
     request<Template>(`/api/templates/${id}/set-default`, { method: 'PATCH' }),
+  updateTemplate: (id: string, latex_content: string) =>
+    request<Template>(`/api/templates/${id}/content`, {
+      method: 'PATCH',
+      body: JSON.stringify({ latex_content }),
+    }),
   getTemplatePdfPreview: (id: string) => requestFile(`/api/templates/${id}/preview-pdf`),
 
   // Documents

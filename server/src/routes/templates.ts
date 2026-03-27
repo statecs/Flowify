@@ -126,6 +126,30 @@ router.patch('/:id/set-default', requireApiKey, async (req, res) => {
   }
 });
 
+router.patch('/:id/content', requireApiKey, async (req, res) => {
+  const { latex_content } = req.body;
+  if (!latex_content || typeof latex_content !== 'string') {
+    return res.status(400).json({ error: 'latex_content is required' });
+  }
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      'SELECT id FROM templates WHERE id = ?', [req.params.id]
+    );
+    if ((rows as RowDataPacket[]).length === 0) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    await pool.execute('UPDATE templates SET latex_content = ? WHERE id = ?',
+      [latex_content, req.params.id]);
+    const [updated] = await pool.execute<RowDataPacket[]>(
+      'SELECT * FROM templates WHERE id = ?', [req.params.id]
+    );
+    res.json((updated as RowDataPacket[])[0]);
+  } catch (error) {
+    logger.error('[PATCH /api/templates/:id/content]', error);
+    res.status(500).json({ error: 'Failed to update template' });
+  }
+});
+
 router.get('/:id/preview-pdf', requireApiKey, async (req, res) => {
   const tmpDir = path.join(os.tmpdir(), crypto.randomUUID());
   try {

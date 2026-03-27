@@ -22,6 +22,12 @@ export default function TemplatesPage() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfErrorDetail, setPdfErrorDetail] = useState<string | null>(null);
+  const [editedLatex, setEditedLatex] = useState<string>('');
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveAsNewOpen, setSaveAsNewOpen] = useState(false);
+  const [saveAsNewName, setSaveAsNewName] = useState('');
+  const [isSavingNew, setIsSavingNew] = useState(false);
 
   // Upload form state
   const [uploadName, setUploadName] = useState('');
@@ -96,6 +102,8 @@ export default function TemplatesPage() {
     try {
       const tmpl = await tmplPromise;
       setPreviewTemplate(tmpl);
+      setEditedLatex(tmpl.latex_content ?? '');
+      setIsDirty(false);
     } catch {
       toast.error('Failed to load template');
       setPreviewOpen(false);
@@ -118,12 +126,54 @@ export default function TemplatesPage() {
   };
 
   const handleClosePreview = () => {
+    if (isDirty && !confirm('You have unsaved changes. Close anyway?')) return;
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
     setPreviewOpen(false);
     setPreviewTemplate(null);
     setPreviewPdfUrl(null);
     setPdfError(null);
     setPdfErrorDetail(null);
+    setEditedLatex('');
+    setIsDirty(false);
+    setSaveAsNewOpen(false);
+    setSaveAsNewName('');
+  };
+
+  const handleSave = async () => {
+    if (!previewTemplate || !isDirty) return;
+    setIsSaving(true);
+    try {
+      await api.updateTemplate(previewTemplate.id, editedLatex);
+      setIsDirty(false);
+      if (previewPdfUrl) { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }
+      setPdfError(null);
+      toast.success('Template saved');
+    } catch {
+      toast.error('Failed to save template');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAsNew = async () => {
+    if (!previewTemplate || !saveAsNewName.trim()) return;
+    setIsSavingNew(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', saveAsNewName.trim());
+      formData.append('document_type_id', previewTemplate.document_type_id);
+      if (previewTemplate.description) formData.append('description', previewTemplate.description);
+      formData.append('latex_content', editedLatex);
+      const newTemplate = await api.createTemplate(formData);
+      setTemplates(prev => [newTemplate, ...prev]);
+      setSaveAsNewOpen(false);
+      setSaveAsNewName('');
+      toast.success(`Template "${newTemplate.name}" created`);
+    } catch {
+      toast.error('Failed to create template');
+    } finally {
+      setIsSavingNew(false);
+    }
   };
 
   const handleUpload = async () => {
@@ -392,16 +442,50 @@ export default function TemplatesPage() {
               ) : null}
             </div>
           ) : previewTemplate ? (
-            <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[70vh] font-mono whitespace-pre-wrap">
-              {previewTemplate.latex_content}
-            </pre>
+            <textarea
+              className="w-full h-[70vh] bg-muted rounded p-4 text-xs font-mono resize-none border focus:outline-none focus:ring-1 focus:ring-ring"
+              value={editedLatex}
+              onChange={(e) => { setEditedLatex(e.target.value); setIsDirty(true); }}
+              spellCheck={false}
+            />
           ) : (
             <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
               Loading…
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClosePreview}>Close</Button>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            {saveAsNewOpen && (
+              <div className="flex items-center gap-2 w-full">
+                <Input
+                  placeholder="New template name…"
+                  value={saveAsNewName}
+                  onChange={(e) => setSaveAsNewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsNew(); }}
+                  autoFocus
+                  className="flex-1 h-8 text-sm"
+                />
+                <Button size="sm" onClick={handleSaveAsNew} disabled={!saveAsNewName.trim() || isSavingNew}>
+                  {isSavingNew ? 'Creating…' : 'Create'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSaveAsNewOpen(false)}>Cancel</Button>
+              </div>
+            )}
+            <div className="flex w-full justify-between items-center gap-2">
+              <Button variant="outline" onClick={handleClosePreview}>Close</Button>
+              {previewTab === 'source' && previewTemplate && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => { setSaveAsNewOpen(true); setSaveAsNewName(''); }}
+                    disabled={isSaving || isSavingNew}
+                  >Save As New</Button>
+                  <Button
+                    size="sm" onClick={handleSave}
+                    disabled={!isDirty || isSaving || isSavingNew}
+                  >{isSaving ? 'Saving…' : 'Save'}</Button>
+                </div>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
