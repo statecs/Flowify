@@ -10,6 +10,7 @@ import { logger } from '../logger';
 import { requireApiKey } from '../middleware/auth';
 import { templateUpload } from '../middleware/upload';
 import { renderTemplate } from '../services/templateService';
+import { callClaude } from '../ai';
 
 const execAsync = promisify(exec);
 
@@ -30,6 +31,26 @@ router.get('/', requireApiKey, async (req, res) => {
   } catch (error) {
     logger.error('[GET /api/templates]', error);
     res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+router.post('/fix-latex', requireApiKey, async (req, res) => {
+  const { latex_content } = req.body;
+  if (!latex_content || typeof latex_content !== 'string') {
+    return res.status(400).json({ error: 'latex_content required' });
+  }
+  try {
+    const system = `You are a LaTeX expert. Fix all syntax errors in the provided LaTeX template.
+Rules:
+- Preserve ALL {{field_name}} and {{#block_name}}...{{/block_name}} template placeholders exactly as written
+- Fix only LaTeX syntax errors (undefined control sequences, bad escaping, alignment errors, missing braces, etc.)
+- Do NOT add or remove document structure or content
+- Return ONLY the corrected LaTeX source, no explanations, no markdown code fences`;
+    const result = await callClaude(system, latex_content, 4096);
+    res.json({ fixed_content: result.outputText });
+  } catch (err) {
+    logger.error('[POST /api/templates/fix-latex]', err);
+    res.status(500).json({ error: 'AI fix failed' });
   }
 });
 

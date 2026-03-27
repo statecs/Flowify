@@ -74,6 +74,11 @@ export const api = {
       body: JSON.stringify({ latex_content }),
     }),
   getTemplatePdfPreview: (id: string) => requestFile(`/api/templates/${id}/preview-pdf`),
+  fixLatex: (latex_content: string) =>
+    request<{ fixed_content: string }>('/api/templates/fix-latex', {
+      method: 'POST',
+      body: JSON.stringify({ latex_content }),
+    }),
 
   // Documents
   uploadDocument: (data: FormData) => {

@@ -28,6 +28,7 @@ export default function TemplatesPage() {
   const [saveAsNewOpen, setSaveAsNewOpen] = useState(false);
   const [saveAsNewName, setSaveAsNewName] = useState('');
   const [isSavingNew, setIsSavingNew] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
 
   // Upload form state
   const [uploadName, setUploadName] = useState('');
@@ -151,6 +152,7 @@ export default function TemplatesPage() {
     setPdfErrorDetail(null);
     setEditedLatex('');
     setIsDirty(false);
+    setIsFixing(false);
     setSaveAsNewOpen(false);
     setSaveAsNewName('');
     setPreviewTab('pdf');
@@ -164,11 +166,7 @@ export default function TemplatesPage() {
       setIsDirty(false);
       setPdfError(null);
       toast.success('Template saved');
-      if (previewTab === 'split') {
-        handleFetchPdf(previewTemplate.id);
-      } else {
-        if (previewPdfUrl) { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }
-      }
+      handleFetchPdf(previewTemplate.id);
     } catch {
       toast.error('Failed to save template');
     } finally {
@@ -194,6 +192,21 @@ export default function TemplatesPage() {
       toast.error('Failed to create template');
     } finally {
       setIsSavingNew(false);
+    }
+  };
+
+  const handleFixLatex = async () => {
+    if (!editedLatex.trim()) return;
+    setIsFixing(true);
+    try {
+      const { fixed_content } = await api.fixLatex(editedLatex);
+      setEditedLatex(fixed_content);
+      setIsDirty(true);
+      toast.success('LaTeX errors fixed — review changes and save');
+    } catch {
+      toast.error('AI fix failed');
+    } finally {
+      setIsFixing(false);
     }
   };
 
@@ -535,16 +548,36 @@ export default function TemplatesPage() {
             )}
             <div className="flex w-full justify-between items-center gap-2">
               <Button variant="outline" onClick={handleClosePreview}>Close</Button>
+              {(previewTab === 'source' || previewTab === 'split') && (pdfLoading || pdfError || previewPdfUrl) && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  {pdfLoading ? (
+                    <span className="text-muted-foreground">Compiling…</span>
+                  ) : pdfError ? (
+                    <span className="text-yellow-700 font-medium">⚠ LaTeX errors found</span>
+                  ) : (
+                    <span className="text-green-700 font-medium">✓ Compiled OK</span>
+                  )}
+                </div>
+              )}
               {(previewTab === 'source' || previewTab === 'split') && previewTemplate && (
                 <div className="flex gap-2">
+                  {!!pdfError && (
+                    <Button
+                      variant="destructive" size="sm"
+                      onClick={handleFixLatex}
+                      disabled={isFixing || isSaving || isSavingNew}
+                    >
+                      {isFixing ? 'Fixing…' : 'Fix Errors'}
+                    </Button>
+                  )}
                   <Button
                     variant="outline" size="sm"
                     onClick={() => { setSaveAsNewOpen(true); setSaveAsNewName(''); }}
-                    disabled={isSaving || isSavingNew}
+                    disabled={isSaving || isSavingNew || isFixing}
                   >Save As New</Button>
                   <Button
                     size="sm" onClick={handleSave}
-                    disabled={!isDirty || isSaving || isSavingNew}
+                    disabled={!isDirty || isSaving || isSavingNew || isFixing}
                   >{isSaving ? 'Saving…' : 'Save'}</Button>
                 </div>
               )}
