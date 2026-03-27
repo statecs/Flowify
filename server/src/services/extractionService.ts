@@ -45,7 +45,7 @@ export async function extract(documentId: string, rawText: string, imagePaths: s
 
   logger.log(`[Extraction] Calling OpenAI Vision for document ${documentId} with ${imagesToUse.length} images`);
 
-  const result = await callOpenAIVision(systemPrompt, contentParts, 4000);
+  const result = await callOpenAIVision(systemPrompt, contentParts, 16000);
 
   let fields: any;
   try {
