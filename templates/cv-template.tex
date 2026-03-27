@@ -1,0 +1,98 @@
+\documentclass[10pt, a4paper]{article}
+
+% ─── Packages ─────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2cm, bottom=2cm, left=2.2cm, right=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{array}
+\usepackage{tabularx}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\parindent}{0pt}
+\usepackage{enumitem}
+\usepackage[hidelinks, colorlinks=true, urlcolor=navyblue]{hyperref}
+
+% ─── Colors ───────────────────────────────────────────────────────────────────
+\definecolor{navyblue}{HTML}{003366}
+\definecolor{darkgray}{HTML}{444444}
+\definecolor{lightgray}{HTML}{888888}
+
+% ─── Section Formatting ───────────────────────────────────────────────────────
+\titleformat{\section}
+  {\large\bfseries\color{navyblue}}
+  {}
+  {0em}
+  {}
+  [\vspace{-0.4em}\textcolor{navyblue}{\rule{\linewidth}{0.8pt}}\vspace{0.2em}]
+
+\titlespacing{\section}{0pt}{1.2em}{0.4em}
+
+% ─── List Styling ─────────────────────────────────────────────────────────────
+\setlist[itemize]{
+  leftmargin=1.5em,
+  itemsep=0.1em,
+  topsep=0.3em,
+  parsep=0pt
+}
+
+% ─── No Page Numbers ──────────────────────────────────────────────────────────
+\pagestyle{empty}
+
+% ─── Column widths ────────────────────────────────────────────────────────────
+\newcolumntype{D}{>{\raggedright\small\color{lightgray}}p{2.8cm}}
+\newcolumntype{C}{>{\raggedright}X}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ─── Header ───────────────────────────────────────────────────────────────────
+\begin{center}
+  {\huge\bfseries\color{navyblue} {{name}}}\\[0.4em]
+  {\large\color{darkgray} {{subtitle}}}
+\end{center}
+\vspace{0.3em}
+{\color{navyblue}\rule{\linewidth}{1.5pt}}
+\vspace{0.6em}
+
+% ─── Work Experience ──────────────────────────────────────────────────────────
+\section{Relevant Experience}
+
+\begin{tabularx}{\linewidth}{D C}
+{{#work_experience}}\textit{ {{date_range}} } &
+  \textbf{ {{title}} }\textit{ $|$ {{company}} }\\
+& {{description}}
+\begin{itemize}[nosep, leftmargin=1em, topsep=0pt, partopsep=0pt]
+{{#bullet_points}}\item {{.}} {{/bullet_points}}\end{itemize}\\[0.4em]
+{{/work_experience}}\end{tabularx}
+
+% ─── Skills ───────────────────────────────────────────────────────────────────
+\section{Specialist Expertise}
+
+\begin{tabularx}{\linewidth}{>{\bfseries\color{navyblue}}p{3.2cm} X}
+Methods    & {{skills_Methods}} \\[0.3em]
+Tools      & {{skills_Tools}} \\[0.3em]
+Tech       & {{skills_Tech}} \\[0.3em]
+Standards  & {{skills_Standards}} \\[0.3em]
+Languages  & {{skills_Languages}} \\
+\end{tabularx}
+
+% ─── Education ────────────────────────────────────────────────────────────────
+\section{Education}
+
+\begin{tabularx}{\linewidth}{D C}
+{{#education}}\textit{ {{date_range}} } &
+  \textbf{ {{degree}} }\\
+& {{institution}} \\[0.5em]
+{{/education}}\end{tabularx}
+
+% ─── Portfolio ────────────────────────────────────────────────────────────────
+{{#portfolio}}
+\section{Portfolio}
+
+\begin{itemize}
+  \item \href{ {{url}} }{\textcolor{navyblue}{ {{url}} }}
+\end{itemize}
+{{/portfolio}}
+
+\end{document}

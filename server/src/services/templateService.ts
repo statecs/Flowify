@@ -50,20 +50,23 @@ export async function renderTemplate(templateId: string, fields: any): Promise<s
     const arrayVal = fields[key];
     if (!Array.isArray(arrayVal) || arrayVal.length === 0) return '';
 
+    const trimmedBody = blockBody.replace(/^\n+/, '').replace(/\n+$/, '');
+
     return arrayVal.map((item: any) => {
-      let rendered = blockBody;
+      let rendered = trimmedBody;
 
       // Handle nested {{#bullet_points}}...{{/bullet_points}} within item
       rendered = rendered.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_m2: string, subKey: string, subBody: string) => {
         const subArray = item[subKey];
         if (!Array.isArray(subArray) || subArray.length === 0) return '';
+        const trimmedSubBody = subBody.replace(/^\n+/, '').replace(/\n+$/, '');
         return subArray.map((subItem: any) => {
-          return subBody.replace(/\{\{\.?\}\}/g, () => escapeLatex(String(subItem)));
+          return trimmedSubBody.replace(/\{\{\.?\}\}/g, () => escapeLatex(String(subItem)));
         }).join('');
       });
 
       return renderBlock(rendered, item);
-    }).join('');
+    }).join('\n');
   });
 
   // Handle skills object: {{skills_Methods}}, {{skills_Tools}}, etc.

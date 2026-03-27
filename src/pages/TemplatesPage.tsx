@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, Template, DocumentType } from '@/lib/api';
+import { api, ApiError, Template, DocumentType } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,11 +15,13 @@ export default function TemplatesPage() {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [previewTab, setPreviewTab] = useState<'pdf' | 'source'>('pdf');
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfErrorDetail, setPdfErrorDetail] = useState<string | null>(null);
 
   // Upload form state
   const [uploadName, setUploadName] = useState('');
@@ -77,29 +79,39 @@ export default function TemplatesPage() {
   };
 
   const handlePreview = async (templateId: string) => {
+    // Open dialog immediately
+    setPreviewOpen(true);
     setPreviewTab('pdf');
     setPdfError(null);
+    setPdfErrorDetail(null);
     setPreviewPdfUrl(null);
     setPdfLoading(true);
+    setPreviewTemplate(null);
+
+    // Start both fetches in parallel
+    const tmplPromise = api.getTemplate(templateId);
+    const pdfPromise = api.getTemplatePdfPreview(templateId);
+
+    // Template DB fetch is fast — populate name/source quickly
     try {
-      const [tmpl, pdfBlob] = await Promise.allSettled([
-        api.getTemplate(templateId),
-        api.getTemplatePdfPreview(templateId),
-      ]);
-      if (tmpl.status === 'fulfilled') {
-        setPreviewTemplate(tmpl.value);
-      } else {
-        toast.error('Failed to load template');
-        return;
-      }
-      if (pdfBlob.status === 'fulfilled') {
-        setPreviewPdfUrl(URL.createObjectURL(pdfBlob.value));
-      } else {
-        setPdfError('PDF preview unavailable — pdflatex may not be installed');
-        setPreviewTab('source');
-      }
+      const tmpl = await tmplPromise;
+      setPreviewTemplate(tmpl);
     } catch {
       toast.error('Failed to load template');
+      setPreviewOpen(false);
+      setPdfLoading(false);
+      return;
+    }
+
+    // PDF compilation is slow — await separately
+    try {
+      const blob = await pdfPromise;
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      const apiErr = err instanceof ApiError ? err : null;
+      setPdfError(apiErr ? apiErr.message : 'PDF preview unavailable');
+      setPdfErrorDetail(apiErr?.detail ?? null);
+      setPreviewTab('source');
     } finally {
       setPdfLoading(false);
     }
@@ -107,9 +119,11 @@ export default function TemplatesPage() {
 
   const handleClosePreview = () => {
     if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewOpen(false);
     setPreviewTemplate(null);
     setPreviewPdfUrl(null);
     setPdfError(null);
+    setPdfErrorDetail(null);
   };
 
   const handleUpload = async () => {
@@ -328,10 +342,10 @@ export default function TemplatesPage() {
       </Dialog>
 
       {/* Preview dialog */}
-      <Dialog open={!!previewTemplate} onOpenChange={handleClosePreview}>
+      <Dialog open={previewOpen} onOpenChange={handleClosePreview}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{previewTemplate?.name}</DialogTitle>
+            <DialogTitle>{previewTemplate?.name ?? 'Loading…'}</DialogTitle>
           </DialogHeader>
           <div className="flex gap-2 border-b pb-2">
             <Button
@@ -360,7 +374,12 @@ export default function TemplatesPage() {
                   <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
                     {pdfError}
                   </div>
-                  <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[60vh] font-mono whitespace-pre-wrap">
+                  {pdfErrorDetail && (
+                    <pre className="bg-muted rounded p-3 text-xs overflow-auto max-h-[40vh] font-mono whitespace-pre-wrap">
+                      {pdfErrorDetail}
+                    </pre>
+                  )}
+                  <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[30vh] font-mono whitespace-pre-wrap">
                     {previewTemplate?.latex_content}
                   </pre>
                 </div>
@@ -372,10 +391,14 @@ export default function TemplatesPage() {
                 />
               ) : null}
             </div>
-          ) : (
+          ) : previewTemplate ? (
             <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-[70vh] font-mono whitespace-pre-wrap">
-              {previewTemplate?.latex_content}
+              {previewTemplate.latex_content}
             </pre>
+          ) : (
+            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+              Loading…
+            </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={handleClosePreview}>Close</Button>

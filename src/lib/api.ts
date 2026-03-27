@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5073';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public detail?: string) {
     super(message);
     this.name = 'ApiError';
   }
@@ -33,7 +33,8 @@ async function requestFile(path: string): Promise<Blob> {
   });
 
   if (!res.ok) {
-    throw new ApiError(res.status, res.statusText);
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new ApiError(res.status, body.error || res.statusText, body.detail);
   }
 
   return res.blob();

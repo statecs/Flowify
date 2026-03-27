@@ -273,7 +273,7 @@ app.get('/api/templates/:id/preview-pdf', requireApiKey, async (req, res) => {
 
     const pdfPath = path.join(tmpDir, 'preview.pdf');
     if (!fs.existsSync(pdfPath)) {
-      res.status(503).json({ error: 'LaTeX compilation failed: PDF not produced' });
+      res.status(503).json({ error: 'LaTeX compilation failed', detail: 'pdflatex exited cleanly but produced no PDF' });
       return;
     }
 
@@ -282,8 +282,12 @@ app.get('/api/templates/:id/preview-pdf', requireApiKey, async (req, res) => {
     res.setHeader('Content-Length', pdfBuffer.length);
     res.send(pdfBuffer);
   } catch (error: any) {
+    const latexLog: string = error.stdout ?? '';
+    // Keep first 60 lines of pdflatex log — includes ! errors, l. context, and the
+    // "recently read" lines in between that show what LaTeX was processing.
+    const detail = latexLog.split('\n').slice(0, 60).join('\n') || error.message || String(error);
     logger.error('[GET /api/templates/:id/preview-pdf]', error);
-    res.status(503).json({ error: `LaTeX compilation failed: ${error.message ?? error}` });
+    res.status(503).json({ error: 'LaTeX compilation failed', detail });
   } finally {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
