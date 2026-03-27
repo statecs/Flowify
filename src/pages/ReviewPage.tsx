@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, DocumentDetail, FieldDefinition } from '@/lib/api';
+import { api, ApiError, DocumentDetail, FieldDefinition } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import StatusBadge from '@/components/StatusBadge';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Download, Save, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Download, Save, CheckCircle, Eye } from 'lucide-react';
 
 // ─── Field Editors ────────────────────────────────────────────────────────────
 
@@ -209,6 +209,14 @@ export default function ReviewPage() {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedLatex, setGeneratedLatex] = useState<string | null>(null);
+  const [outputTab, setOutputTab] = useState<'pdf' | 'source' | 'split'>('pdf');
+  const [outputPdfUrl, setOutputPdfUrl] = useState<string | null>(null);
+  const [outputPdfLoading, setOutputPdfLoading] = useState(false);
+  const [outputPdfError, setOutputPdfError] = useState<string | null>(null);
+  const [outputPdfErrorDetail, setOutputPdfErrorDetail] = useState<string | null>(null);
+  const [editedOutputLatex, setEditedOutputLatex] = useState('');
+  const [isOutputDirty, setIsOutputDirty] = useState(false);
+  const [isSavingOutput, setIsSavingOutput] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -296,12 +304,87 @@ export default function ReviewPage() {
       await api.updateExtraction(id, fields);
       const result = await api.acceptDocument(id, selectedTemplate);
       setGeneratedLatex(result.latex_content);
+      setEditedOutputLatex(result.latex_content);
+      setIsOutputDirty(false);
+      setOutputTab('pdf');
+      setOutputPdfUrl(null);
+      setOutputPdfError(null);
+      setOutputPdfErrorDetail(null);
       toast.success('Output generated');
       setDoc(prev => prev ? { ...prev, status: 'generated' } : prev);
+      // Compile PDF in background
+      fetchOutputPdf(id);
     } catch {
       toast.error('Failed to generate output');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const fetchOutputPdf = async (docId: string) => {
+    setOutputPdfLoading(true);
+    setOutputPdfError(null);
+    setOutputPdfErrorDetail(null);
+    if (outputPdfUrl) { URL.revokeObjectURL(outputPdfUrl); setOutputPdfUrl(null); }
+    try {
+      const blob = await api.getOutputPdf(docId);
+      setOutputPdfUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      const apiErr = err instanceof ApiError ? err : null;
+      setOutputPdfError(apiErr ? apiErr.message : 'PDF compilation failed');
+      setOutputPdfErrorDetail(apiErr?.detail ?? null);
+    } finally {
+      setOutputPdfLoading(false);
+    }
+  };
+
+  const handleOpenOutputDialog = async () => {
+    if (!id) return;
+    // Show output view immediately (non-null generatedLatex triggers it)
+    if (!generatedLatex) setGeneratedLatex('\u00a0'); // placeholder — replaced below
+    setAcceptDialogOpen(true);
+    if (!editedOutputLatex) {
+      // Load existing output (page was refreshed, state was reset)
+      try {
+        const blob = await api.getOutput(id);
+        const text = await blob.text();
+        setEditedOutputLatex(text);
+        setGeneratedLatex(text);
+      } catch { /* ignore */ }
+    }
+    if (!outputPdfUrl && !outputPdfLoading) {
+      fetchOutputPdf(id);
+    }
+  };
+
+  const handleSaveOutput = async () => {
+    if (!id || !isOutputDirty) return;
+    setIsSavingOutput(true);
+    try {
+      await api.updateOutput(id, editedOutputLatex);
+      setIsOutputDirty(false);
+      setOutputPdfError(null);
+      toast.success('Output saved');
+      fetchOutputPdf(id);
+    } catch {
+      toast.error('Failed to save output');
+    } finally {
+      setIsSavingOutput(false);
+    }
+  };
+
+  const handleDownloadOutputPdf = async () => {
+    if (!id) return;
+    try {
+      const blob = await api.getOutputPdf(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc?.original_filename?.replace(/\.[^.]+$/, '') || 'output'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download PDF');
     }
   };
 
@@ -345,10 +428,16 @@ export default function ReviewPage() {
         </div>
         <div className="flex items-center gap-2">
           {doc.status === 'generated' && (
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Download .tex
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={handleOpenOutputDialog}>
+                <Eye className="h-4 w-4 mr-2" />
+                View Output
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="h-4 w-4 mr-2" />
+                Download .tex
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
@@ -475,7 +564,7 @@ export default function ReviewPage() {
 
       {/* Accept dialog */}
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className={generatedLatex && outputTab === 'split' ? 'max-w-[92vw]' : 'max-w-3xl'}>
           <DialogHeader>
             <DialogTitle>Accept & Generate LaTeX</DialogTitle>
           </DialogHeader>
@@ -506,16 +595,79 @@ export default function ReviewPage() {
               </DialogFooter>
             </div>
           ) : (
-            <div className="space-y-4">
-              <pre className="bg-muted rounded p-4 text-xs overflow-auto max-h-80 font-mono">
-                {generatedLatex}
-              </pre>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>Close</Button>
-                <Button onClick={handleDownload}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download .tex
-                </Button>
+            <div className="space-y-3">
+              <div className="flex gap-2 border-b pb-2">
+                <Button variant={outputTab === 'pdf' ? 'default' : 'ghost'} size="sm" onClick={() => setOutputTab('pdf')}>PDF Preview</Button>
+                <Button variant={outputTab === 'source' ? 'default' : 'ghost'} size="sm" onClick={() => setOutputTab('source')}>LaTeX Source</Button>
+                <Button variant={outputTab === 'split' ? 'default' : 'ghost'} size="sm" onClick={() => setOutputTab('split')}>Split</Button>
+              </div>
+              {outputTab === 'split' ? (
+                <div className="flex gap-3 h-[60vh]">
+                  <textarea
+                    className="flex-1 bg-muted rounded p-3 text-xs font-mono resize-none border focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={editedOutputLatex}
+                    onChange={(e) => { setEditedOutputLatex(e.target.value); setIsOutputDirty(true); }}
+                    spellCheck={false}
+                  />
+                  <div className="flex-1 flex flex-col">
+                    {outputPdfLoading ? (
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm rounded border bg-muted/30">Compiling PDF...</div>
+                    ) : outputPdfError ? (
+                      <div className="space-y-2 overflow-auto">
+                        <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">{outputPdfError}</div>
+                        {outputPdfErrorDetail && (
+                          <pre className="bg-muted rounded p-3 text-xs overflow-auto max-h-[20vh] font-mono whitespace-pre-wrap">{outputPdfErrorDetail}</pre>
+                        )}
+                      </div>
+                    ) : outputPdfUrl ? (
+                      <iframe src={outputPdfUrl} className="w-full h-full rounded border" title="Output PDF" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm rounded border bg-muted/30">Save to recompile</div>
+                    )}
+                  </div>
+                </div>
+              ) : outputTab === 'pdf' ? (
+                <div className="w-full h-[60vh]">
+                  {outputPdfLoading ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Compiling PDF...</div>
+                  ) : outputPdfError ? (
+                    <div className="space-y-3">
+                      <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">{outputPdfError}</div>
+                      {outputPdfErrorDetail && (
+                        <pre className="bg-muted rounded p-3 text-xs overflow-auto max-h-[30vh] font-mono whitespace-pre-wrap">{outputPdfErrorDetail}</pre>
+                      )}
+                    </div>
+                  ) : outputPdfUrl ? (
+                    <iframe src={outputPdfUrl} className="w-full h-full rounded border" title="Output PDF" />
+                  ) : null}
+                </div>
+              ) : (
+                <textarea
+                  className="w-full h-[60vh] bg-muted rounded p-3 text-xs font-mono resize-none border focus:outline-none focus:ring-1 focus:ring-ring"
+                  value={editedOutputLatex}
+                  onChange={(e) => { setEditedOutputLatex(e.target.value); setIsOutputDirty(true); }}
+                  spellCheck={false}
+                />
+              )}
+              <DialogFooter className="flex-col gap-2 sm:flex-col">
+                <div className="flex w-full justify-between items-center gap-2">
+                  <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>Close</Button>
+                  <div className="flex gap-2">
+                    {(outputTab === 'source' || outputTab === 'split') && (
+                      <Button size="sm" onClick={handleSaveOutput} disabled={!isOutputDirty || isSavingOutput}>
+                        {isSavingOutput ? 'Saving…' : 'Save'}
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleDownloadOutputPdf}>
+                      <Download className="h-4 w-4 mr-1" />
+                      Download PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDownload}>
+                      <Download className="h-4 w-4 mr-1" />
+                      Download .tex
+                    </Button>
+                  </div>
+                </div>
               </DialogFooter>
             </div>
           )}

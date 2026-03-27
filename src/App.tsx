@@ -5,6 +5,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import UploadPage from '@/pages/UploadPage';
 import ReviewPage from '@/pages/ReviewPage';
 import TemplatesPage from '@/pages/TemplatesPage';
+import OutputsPage from '@/pages/OutputsPage';
 import LoginPage from '@/pages/LoginPage';
 import Navbar from '@/components/Navbar';
 
@@ -58,6 +59,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AppLayout><TemplatesPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/outputs"
+            element={
+              <ProtectedRoute>
+                <AppLayout><OutputsPage /></AppLayout>
               </ProtectedRoute>
             }
           />

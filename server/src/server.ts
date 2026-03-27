@@ -9,6 +9,7 @@ import documentTypesRouter from './routes/documentTypes';
 import templatesRouter from './routes/templates';
 import documentsRouter from './routes/documents';
 import outputsRouter from './routes/outputs';
+import outputsListRouter from './routes/outputsList';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use('/api/document-types', documentTypesRouter);
 app.use('/api/templates', templatesRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/documents', outputsRouter);
+app.use('/api/outputs', outputsListRouter);
 
 async function main() {
   try {

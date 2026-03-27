@@ -120,6 +120,13 @@ export const api = {
       body: JSON.stringify({ template_id }),
     }),
   getOutput: (id: string) => requestFile(`/api/documents/${id}/output`),
+  getOutputPdf: (id: string) => requestFile(`/api/documents/${id}/output-pdf`),
+  updateOutput: (id: string, latex_content: string) =>
+    request<{ success: boolean }>(`/api/documents/${id}/output`, {
+      method: 'PATCH',
+      body: JSON.stringify({ latex_content }),
+    }),
+  getOutputs: () => request<Output[]>('/api/outputs'),
   reprocessDocument: (id: string) =>
     request<{ id: string; status: string }>(`/api/documents/${id}/reprocess`, { method: 'POST' }),
 };
@@ -191,6 +198,17 @@ export interface DocumentDetail extends DocumentSummary {
   field_schema: FieldDefinition[];
   pages: DocumentPage[];
   extraction: Extraction | null;
+}
+
+export interface Output {
+  id: string;
+  document_id: string;
+  template_id: string;
+  original_filename: string;
+  document_type_id: string;
+  document_type_label: string;
+  template_name: string;
+  created_at: string;
 }
 
 export interface DocumentsResponse {

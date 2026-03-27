@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, DocumentSummary } from '@/lib/api';
+import { api, ApiError, DocumentSummary } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from '@/components/ui/dialog';
 import StatusBadge from '@/components/StatusBadge';
 import { toast } from 'sonner';
-import { Upload, RefreshCw, Trash2, Eye, RotateCcw } from 'lucide-react';
+import { Upload, RefreshCw, Trash2, Eye, RotateCcw, Download, FileOutput } from 'lucide-react';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,6 +24,13 @@ export default function DashboardPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Output preview dialog
+  const [outputPreviewOpen, setOutputPreviewOpen] = useState(false);
+  const [outputPreviewDoc, setOutputPreviewDoc] = useState<DocumentSummary | null>(null);
+  const [outputPdfUrl, setOutputPdfUrl] = useState<string | null>(null);
+  const [outputPdfLoading, setOutputPdfLoading] = useState(false);
+  const [outputPdfError, setOutputPdfError] = useState<string | null>(null);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -55,6 +65,61 @@ export default function DashboardPage() {
       toast.success('Document deleted');
     } catch {
       toast.error('Failed to delete document');
+    }
+  };
+
+  const handleOpenOutputPreview = async (doc: DocumentSummary) => {
+    setOutputPreviewDoc(doc);
+    setOutputPdfUrl(null);
+    setOutputPdfError(null);
+    setOutputPdfLoading(true);
+    setOutputPreviewOpen(true);
+    try {
+      const blob = await api.getOutputPdf(doc.id);
+      setOutputPdfUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      const apiErr = err instanceof ApiError ? err : null;
+      setOutputPdfError(apiErr ? apiErr.message : 'PDF compilation failed');
+    } finally {
+      setOutputPdfLoading(false);
+    }
+  };
+
+  const handleCloseOutputPreview = () => {
+    if (outputPdfUrl) URL.revokeObjectURL(outputPdfUrl);
+    setOutputPreviewOpen(false);
+    setOutputPreviewDoc(null);
+    setOutputPdfUrl(null);
+    setOutputPdfError(null);
+  };
+
+  const handleDownloadOutputPdf = async () => {
+    if (!outputPreviewDoc) return;
+    try {
+      const blob = await api.getOutputPdf(outputPreviewDoc.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${outputPreviewDoc.original_filename.replace(/\.[^.]+$/, '')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download PDF');
+    }
+  };
+
+  const handleDownloadOutputTex = async () => {
+    if (!outputPreviewDoc) return;
+    try {
+      const blob = await api.getOutput(outputPreviewDoc.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${outputPreviewDoc.original_filename.replace(/\.[^.]+$/, '')}.tex`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download .tex file');
     }
   };
 
@@ -139,6 +204,16 @@ export default function DashboardPage() {
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(doc.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {doc.status === 'generated' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenOutputPreview(doc)}
+                        >
+                          <FileOutput className="h-4 w-4 mr-1" />
+                          View Output
+                        </Button>
+                      )}
                       {(doc.status === 'reviewing' || doc.status === 'accepted' || doc.status === 'generated') && (
                         <Button
                           variant="ghost"
@@ -175,6 +250,43 @@ export default function DashboardPage() {
           </table>
         </div>
       )}
+
+      {/* Output preview dialog */}
+      <Dialog open={outputPreviewOpen} onOpenChange={handleCloseOutputPreview}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {outputPreviewDoc?.original_filename.replace(/\.[^.]+$/, '') ?? 'Output'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="w-full h-[65vh]">
+            {outputPdfLoading ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                Compiling PDF...
+              </div>
+            ) : outputPdfError ? (
+              <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-4 text-sm text-yellow-800">
+                {outputPdfError}
+              </div>
+            ) : outputPdfUrl ? (
+              <iframe src={outputPdfUrl} className="w-full h-full rounded border" title="Output PDF" />
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { handleCloseOutputPreview(); navigate('/outputs'); }}>
+              Open in Generated CVs
+            </Button>
+            <Button variant="outline" onClick={handleDownloadOutputTex}>
+              <Download className="h-4 w-4 mr-1" />
+              Download .tex
+            </Button>
+            <Button onClick={handleDownloadOutputPdf}>
+              <Download className="h-4 w-4 mr-1" />
+              Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Upload, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Upload, FileText, FileOutput, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ export default function Navbar() {
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/upload', label: 'Upload', icon: Upload },
     { to: '/templates', label: 'Templates', icon: FileText },
+    { to: '/outputs', label: 'Generated CVs', icon: FileOutput },
   ];
 
   return (

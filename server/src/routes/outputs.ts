@@ -1,9 +1,16 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { pool, RowDataPacket } from '../db';
 import { logger } from '../logger';
 import { requireApiKey } from '../middleware/auth';
 import { renderTemplate, saveOutput } from '../services/templateService';
+
+const execAsync = promisify(exec);
 
 const router = Router();
 
@@ -43,6 +50,63 @@ router.post('/:id/accept', requireApiKey, async (req, res) => {
   } catch (error) {
     logger.error('[POST /api/documents/:id/accept]', error);
     res.status(500).json({ error: 'Failed to generate output' });
+  }
+});
+
+router.get('/:id/output-pdf', requireApiKey, async (req, res) => {
+  const tmpDir = path.join(os.tmpdir(), crypto.randomUUID());
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT o.latex_content, d.original_filename
+       FROM outputs o JOIN documents d ON o.document_id = d.id
+       WHERE o.document_id = ?
+       ORDER BY o.created_at DESC LIMIT 1`,
+      [req.params.id]
+    );
+    if (rows.length === 0) { res.status(404).json({ error: 'Output not found' }); return; }
+
+    const latexContent: string = rows[0].latex_content;
+
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const texPath = path.join(tmpDir, 'output.tex');
+    fs.writeFileSync(texPath, latexContent, 'utf-8');
+
+    await execAsync(
+      `pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texPath}`
+    );
+
+    const pdfPath = path.join(tmpDir, 'output.pdf');
+    if (!fs.existsSync(pdfPath)) {
+      res.status(503).json({ error: 'LaTeX compilation failed', detail: 'pdflatex produced no PDF' });
+      return;
+    }
+
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    const latexLog: string = error.stdout ?? '';
+    const detail = latexLog.split('\n').slice(0, 60).join('\n') || error.message || String(error);
+    logger.error('[GET /api/documents/:id/output-pdf]', error);
+    res.status(503).json({ error: 'LaTeX compilation failed', detail });
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+router.patch('/:id/output', requireApiKey, async (req, res) => {
+  const { latex_content } = req.body;
+  if (!latex_content) { res.status(400).json({ error: 'latex_content is required' }); return; }
+  try {
+    await pool.execute(
+      'UPDATE outputs SET latex_content = ? WHERE document_id = ? ORDER BY created_at DESC LIMIT 1',
+      [latex_content, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('[PATCH /api/documents/:id/output]', error);
+    res.status(500).json({ error: 'Failed to update output' });
   }
 });
 
