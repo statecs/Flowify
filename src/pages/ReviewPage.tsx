@@ -202,6 +202,7 @@ export default function ReviewPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
@@ -220,9 +221,12 @@ export default function ReviewPage() {
         setFields(f);
       }
       if (d.file_mime === 'application/pdf') {
+        setPdfLoading(true);
         api.getDocumentFile(id).then(blob => {
           setPdfUrl(URL.createObjectURL(blob));
-        }).catch(() => {/* fall through to image viewer */});
+        }).catch(() => {/* fall through to image viewer */}).finally(() => {
+          setPdfLoading(false);
+        });
       }
     }).catch(() => toast.error('Failed to load document'));
   }, [id]);
@@ -368,6 +372,13 @@ export default function ReviewPage() {
                 className="w-full h-full border-0"
                 title="Document preview"
               />
+            </div>
+          ) : pdfLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-foreground" />
+                <span className="text-sm">Loading preview…</span>
+              </div>
             </div>
           ) : (
             <>
