@@ -21,6 +21,7 @@ export const pool: Pool = mysql.createPool({
 const CV_FIELD_SCHEMA = [
   { key: 'name', label: 'Full Name', type: 'text', required: true },
   { key: 'subtitle', label: 'Subtitle / Role', type: 'text', required: false },
+  { key: 'summary', label: 'Professional Summary', type: 'textarea', required: false },
   {
     key: 'work_experience', label: 'Work Experience', type: 'json_array', required: false,
     item_schema: [
@@ -272,6 +273,28 @@ export async function initDatabase(): Promise<void> {
       `INSERT IGNORE INTO templates (id, document_type_id, name, description, latex_content, is_default) VALUES (?, ?, ?, ?, ?, 1)`,
       ['tmpl-cv-default', 'dt-cv', 'Default CV Template', 'Standard CV template with work experience, education, and skills sections', DEFAULT_CV_TEMPLATE]
     );
+
+    // Idempotent migration: inject summary field into CV schema if missing
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        `SELECT field_schema FROM document_types WHERE id = 'dt-cv'`
+      );
+      if (rows.length > 0) {
+        const stored: any[] = typeof rows[0].field_schema === 'string'
+          ? JSON.parse(rows[0].field_schema)
+          : rows[0].field_schema;
+        const hasSummary = stored.some((f: any) => f.key === 'summary');
+        if (!hasSummary) {
+          await pool.execute(
+            `UPDATE document_types SET field_schema = ? WHERE id = 'dt-cv'`,
+            [JSON.stringify(CV_FIELD_SCHEMA)]
+          );
+          logger.log('[DB] Migrated CV field schema to include summary field');
+        }
+      }
+    } catch (err) {
+      logger.error('[DB] Failed to migrate CV field schema:', err);
+    }
 
     logger.log('[DB] Database initialized successfully');
   } catch (error) {
