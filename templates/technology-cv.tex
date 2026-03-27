@@ -12,28 +12,28 @@
 \usepackage{array}
 \usepackage{microtype}
 
-\definecolor{ivybg}{RGB}{58,57,38}
-\definecolor{ivywhite}{RGB}{240,239,228}
-\definecolor{ivygray}{RGB}{150,149,138}
-\definecolor{ivyaccent}{RGB}{175,110,85}
+\definecolor{vybg}{RGB}{58,57,38}
+\definecolor{vywhite}{RGB}{240,239,228}
+\definecolor{vygray}{RGB}{150,149,138}
+\definecolor{vyaccent}{RGB}{175,110,85}
 
-\pagecolor{ivybg}
-\color{ivywhite}
+\pagecolor{vybg}
+\color{vywhite}
 \setlength{\parindent}{0pt}
 
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
-\fancyhead[R]{\textcolor{ivygray}{\Large\textit{\textbf{y}}}}
-\fancyfoot[L]{\textcolor{ivygray}{\footnotesize
-  Ivy Technology,~G\"{o}tgatan~15,~411~05~Gothenburg,~ivytech.se}}
+\fancyhead[R]{\textcolor{vygray}{\Large\textit{\textbf{y}}}}
+\fancyfoot[L]{\textcolor{vygray}{\footnotesize
+  Vy Technology,~G\"{o}tgatan~15,~411~05~Gothenburg,~vytech.se}}
 
 \newcommand{\sectiontitle}[1]{%
-  {\fontsize{20}{26}\selectfont\bfseries\textcolor{ivywhite}{#1}}}
+  {\fontsize{20}{26}\selectfont\bfseries\textcolor{vywhite}{#1}}}
 \newcommand{\subsectiontitle}[1]{%
-  {\fontsize{14}{18}\selectfont\bfseries\textcolor{ivywhite}{#1}}}
-\newcommand{\fieldlabel}[1]{{\bfseries\textcolor{ivywhite}{#1}}}
+  {\fontsize{14}{18}\selectfont\bfseries\textcolor{vywhite}{#1}}}
+\newcommand{\fieldlabel}[1]{{\bfseries\textcolor{vywhite}{#1}}}
 
 \begin{document}
 
@@ -45,9 +45,9 @@
 \begin{minipage}[t]{0.52\textwidth}
   \vspace{0pt}
   \raggedright
-  {\fontsize{34}{42}\selectfont\bfseries\textcolor{ivywhite}{{{name}}}}
+  {\fontsize{34}{42}\selectfont\bfseries\textcolor{vywhite}{{{name}}}}
   \par\vspace{0.6em}
-  {\large\bfseries\textcolor{ivyaccent}{{{subtitle}}}}
+  {\large\bfseries\textcolor{vyaccent}{{{subtitle}}}}
 \end{minipage}%
 \hfill
 \begin{minipage}[t]{0.42\textwidth}
@@ -68,7 +68,7 @@
 
 \vspace{0.5em}
 
-{\bfseries\raggedright\color{ivywhite}%
+{\bfseries\raggedright\color{vywhite}%
   {{skills_Tech}}, {{skills_Methods}}, {{skills_Tools}},
   {{skills_Standards}}, {{skills_Languages}}\par}
 
@@ -78,7 +78,7 @@
 \newpage
 \vspace*{0.8cm}
 
-{\fontsize{22}{28}\selectfont\bfseries\textcolor{ivywhite}{Relevant Projects and Assignments}}
+{\fontsize{22}{28}\selectfont\bfseries\textcolor{vywhite}{Relevant Projects and Assignments}}
 
 \vspace{1.2em}
 
@@ -88,8 +88,8 @@
 \vspace{0.3em}
 \noindent
 \begin{tabular}{@{}p{0.70\linewidth}r@{}}
-  \textcolor{ivywhite}{{{title}}} &
-  \textcolor{ivywhite}{{{date_range}}} \\
+  \textcolor{vywhite}{{{title}}} &
+  \textcolor{vywhite}{{{date_range}}} \\
 \end{tabular}
 
 \vspace{0.6em}
@@ -111,7 +111,7 @@
 {{/bullet_points}}
 
 \vspace{1em}
-{\color{ivygray}\rule{\linewidth}{0.3pt}}
+{\color{vygray}\rule{\linewidth}{0.3pt}}
 \vspace{0.5em}
 
 {{/work_experience}}
@@ -129,8 +129,8 @@
 {{#work_experience}}
 \noindent
 \begin{tabular}{@{}p{0.70\linewidth}r@{}}
-  \textcolor{ivywhite}{{{company}}} &
-  \textcolor{ivywhite}{{{date_range}}} \\
+  \textcolor{vywhite}{{{company}}} &
+  \textcolor{vywhite}{{{date_range}}} \\
 \end{tabular}\\[0.25em]
 {{/work_experience}}
 
@@ -143,9 +143,9 @@
 {{#education}}
 \noindent
 \begin{tabular}{@{}p{0.70\linewidth}r@{}}
-  \textcolor{ivywhite}{{{degree}}} &
-  \textcolor{ivywhite}{{{date_range}}} \\
-  \multicolumn{2}{l}{\textcolor{ivygray}{{{institution}}}} \\
+  \textcolor{vywhite}{{{degree}}} &
+  \textcolor{vywhite}{{{date_range}}} \\
+  \multicolumn{2}{l}{\textcolor{vygray}{{{institution}}}} \\
 \end{tabular}\\[0.8em]
 {{/education}}
 
