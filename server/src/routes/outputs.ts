@@ -82,7 +82,8 @@ router.get('/:id/output-pdf', requireApiKey, async (req, res) => {
     }
 
     await execAsync(
-      `pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texPath}`
+      `pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texPath}`,
+      { cwd: tmpDir }
     );
 
     const pdfPath = path.join(tmpDir, 'output.pdf');
