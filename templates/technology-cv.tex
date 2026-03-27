@@ -11,6 +11,7 @@
 \usepackage{parskip}
 \usepackage{array}
 \usepackage{microtype}
+\usepackage{tikz}
 
 \definecolor{vybg}{RGB}{58,57,38}
 \definecolor{vywhite}{RGB}{240,239,228}
@@ -54,7 +55,13 @@
   \vspace{0pt}
   \raggedleft
   \IfFileExists{photo.jpg}{%
-    \includegraphics[width=\linewidth,height=10cm,keepaspectratio]{photo.jpg}%
+    \begin{tikzpicture}
+      \useasboundingbox (-3cm,-3cm) rectangle (3cm,3cm);
+      \clip (0,0) circle (3cm);
+      \node[anchor=center] at (0,0) {%
+        \includegraphics[width=12cm,height=12cm,keepaspectratio]{photo.jpg}%
+      };
+    \end{tikzpicture}%
   }{}%
 \end{minipage}
 
