@@ -33,7 +33,7 @@ Rules:
 - Return [] for missing array fields
 - Preserve exact text from the document, do not paraphrase or summarize
 - For work experience and education, extract ALL entries found
-- For skills in a CV, group them by category using the keys: Methods, Tools, Tech, Standards, Languages. The document may be in any language — map localized headings to these English keys semantically (e.g. Swedish: Metodik→Methods, Verktyg→Tools, Programmeringsspråk→Languages, Databaser→Tech, Operativsystem→Tech, Övrigt→Standards)
+- For skills in a CV, group them by category using the keys: Methods, Tools, Tech, Standards, Languages (spoken/human languages only — not programming languages). The document may be in any language — map localized headings to these English keys semantically (e.g. Swedish: Metodik→Methods, Verktyg→Tools, Programmeringsspråk→Tech, Databaser→Tech, Operativsystem→Tech, Övrigt→Standards, Språk→Languages)
 - The document may be written in any language. Always map section headings and field labels to their English equivalents semantically — do not skip sections just because their headings are not in English
 - For description and summary fields, include ALL paragraphs verbatim — never truncate or summarise multi-paragraph content`;
 }
