@@ -1,0 +1,152 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,top=2cm,bottom=3cm,left=2.5cm,right=2.5cm,headheight=14pt]{geometry}
+\usepackage{xcolor}
+\usepackage{pagecolor}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{array}
+\usepackage{microtype}
+
+\definecolor{ivybg}{RGB}{58,57,38}
+\definecolor{ivywhite}{RGB}{240,239,228}
+\definecolor{ivygray}{RGB}{150,149,138}
+\definecolor{ivyaccent}{RGB}{175,110,85}
+
+\pagecolor{ivybg}
+\color{ivywhite}
+\setlength{\parindent}{0pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[R]{\textcolor{ivygray}{\Large\textit{\textbf{y}}}}
+\fancyfoot[L]{\textcolor{ivygray}{\footnotesize
+  Ivy Technology,~G\"{o}tgatan~15,~411~05~Gothenburg,~ivytech.se}}
+
+\newcommand{\sectiontitle}[1]{%
+  {\fontsize{20}{26}\selectfont\bfseries\textcolor{ivywhite}{#1}}}
+\newcommand{\subsectiontitle}[1]{%
+  {\fontsize{14}{18}\selectfont\bfseries\textcolor{ivywhite}{#1}}}
+\newcommand{\fieldlabel}[1]{{\bfseries\textcolor{ivywhite}{#1}}}
+
+\begin{document}
+
+% ================================================================
+% PAGE 1 — PROFILE
+% ================================================================
+\vspace*{0.8cm}
+
+\begin{minipage}[t]{0.52\textwidth}
+  \vspace{0pt}
+  \raggedright
+  {\fontsize{34}{42}\selectfont\bfseries\textcolor{ivywhite}{{{name}}}}
+  \par\vspace{0.6em}
+  {\large\bfseries\textcolor{ivyaccent}{{{subtitle}}}}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.42\textwidth}
+  \vspace{0pt}
+  \raggedleft
+  \IfFileExists{photo.jpg}{%
+    \includegraphics[width=\linewidth,height=10cm,keepaspectratio]{photo.jpg}%
+  }{}%
+\end{minipage}
+
+\vspace{1.2em}
+
+{{summary}}
+
+\vspace{1.2em}
+
+\sectiontitle{Specialist Expertise}
+
+\vspace{0.5em}
+
+{\bfseries\raggedright\color{ivywhite}%
+  {{skills_Tech}}, {{skills_Methods}}, {{skills_Tools}},
+  {{skills_Standards}}, {{skills_Languages}}\par}
+
+% ================================================================
+% PAGE 2 — RELEVANT PROJECTS AND ASSIGNMENTS
+% ================================================================
+\newpage
+\vspace*{0.8cm}
+
+{\fontsize{22}{28}\selectfont\bfseries\textcolor{ivywhite}{Relevant Projects and Assignments}}
+
+\vspace{1.2em}
+
+{{#work_experience}}
+\subsectiontitle{\underline{{{company}}}}
+
+\vspace{0.3em}
+\noindent
+\begin{tabular}{@{}p{0.70\linewidth}r@{}}
+  \textcolor{ivywhite}{{{title}}} &
+  \textcolor{ivywhite}{{{date_range}}} \\
+\end{tabular}
+
+\vspace{0.6em}
+
+\fieldlabel{Assignment}
+
+\smallskip
+{{description}}
+
+\vspace{0.6em}
+
+\fieldlabel{Results}
+
+\vspace{0.3em}
+
+{{#bullet_points}}
+\par\noindent\hspace{1.2em}\raisebox{0.1ex}{\textbullet}\hspace{0.6em}%
+{{.}}
+{{/bullet_points}}
+
+\vspace{1em}
+{\color{ivygray}\rule{\linewidth}{0.3pt}}
+\vspace{0.5em}
+
+{{/work_experience}}
+
+% ================================================================
+% PAGE 3 — EMPLOYMENT, EDUCATION & CERTIFICATIONS
+% ================================================================
+\newpage
+\vspace*{0.8cm}
+
+\sectiontitle{Employment}
+
+\vspace{0.7em}
+
+{{#work_experience}}
+\noindent
+\begin{tabular}{@{}p{0.70\linewidth}r@{}}
+  \textcolor{ivywhite}{{{company}}} &
+  \textcolor{ivywhite}{{{date_range}}} \\
+\end{tabular}\\[0.25em]
+{{/work_experience}}
+
+\vspace{1.2em}
+
+\sectiontitle{Education}
+
+\vspace{0.7em}
+
+{{#education}}
+\noindent
+\begin{tabular}{@{}p{0.70\linewidth}r@{}}
+  \textcolor{ivywhite}{{{degree}}} &
+  \textcolor{ivywhite}{{{date_range}}} \\
+  \multicolumn{2}{l}{\textcolor{ivygray}{{{institution}}}} \\
+\end{tabular}\\[0.8em]
+{{/education}}
+
+\end{document}
