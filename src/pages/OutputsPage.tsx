@@ -26,6 +26,7 @@ export default function OutputsPage() {
   const [editedLatex, setEditedLatex] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
 
   useEffect(() => {
     api.getOutputs()
@@ -96,6 +97,21 @@ export default function OutputsPage() {
     setEditedLatex('');
     setIsDirty(false);
     setPreviewTab('pdf');
+  };
+
+  const handleFixLatex = async () => {
+    if (!editedLatex.trim()) return;
+    setIsFixing(true);
+    try {
+      const { fixed_content } = await api.fixLatex(editedLatex);
+      setEditedLatex(fixed_content);
+      setIsDirty(true);
+      toast.success('LaTeX errors fixed — review changes and save');
+    } catch {
+      toast.error('AI fix failed');
+    } finally {
+      setIsFixing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -272,9 +288,29 @@ export default function OutputsPage() {
           <DialogFooter>
             <div className="flex w-full justify-between items-center gap-2">
               <Button variant="outline" onClick={handleClosePreview}>Close</Button>
+              {(previewTab === 'source' || previewTab === 'split') && (pdfLoading || pdfError || previewPdfUrl) && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  {pdfLoading ? (
+                    <span className="text-muted-foreground">Compiling…</span>
+                  ) : pdfError ? (
+                    <span className="text-yellow-700 font-medium">⚠ LaTeX errors found</span>
+                  ) : (
+                    <span className="text-green-700 font-medium">✓ Compiled OK</span>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
+                {(previewTab === 'source' || previewTab === 'split') && !!pdfError && (
+                  <Button
+                    variant="destructive" size="sm"
+                    onClick={handleFixLatex}
+                    disabled={isFixing || isSaving}
+                  >
+                    {isFixing ? 'Fixing…' : 'Fix Errors'}
+                  </Button>
+                )}
                 {(previewTab === 'source' || previewTab === 'split') && (
-                  <Button size="sm" onClick={handleSave} disabled={!isDirty || isSaving}>
+                  <Button size="sm" onClick={handleSave} disabled={!isDirty || isSaving || isFixing}>
                     {isSaving ? 'Saving…' : 'Save'}
                   </Button>
                 )}
