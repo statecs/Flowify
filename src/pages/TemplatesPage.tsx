@@ -17,7 +17,7 @@ export default function TemplatesPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
-  const [previewTab, setPreviewTab] = useState<'pdf' | 'source'>('pdf');
+  const [previewTab, setPreviewTab] = useState<'pdf' | 'source' | 'split'>('pdf');
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -84,6 +84,23 @@ export default function TemplatesPage() {
     }
   };
 
+  const handleFetchPdf = async (templateId: string) => {
+    setPdfLoading(true);
+    setPdfError(null);
+    setPdfErrorDetail(null);
+    if (previewPdfUrl) { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }
+    try {
+      const blob = await api.getTemplatePdfPreview(templateId);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      const apiErr = err instanceof ApiError ? err : null;
+      setPdfError(apiErr ? apiErr.message : 'PDF preview unavailable');
+      setPdfErrorDetail(apiErr?.detail ?? null);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const handlePreview = async (templateId: string) => {
     // Open dialog immediately
     setPreviewOpen(true);
@@ -119,7 +136,6 @@ export default function TemplatesPage() {
       const apiErr = err instanceof ApiError ? err : null;
       setPdfError(apiErr ? apiErr.message : 'PDF preview unavailable');
       setPdfErrorDetail(apiErr?.detail ?? null);
-      setPreviewTab('source');
     } finally {
       setPdfLoading(false);
     }
@@ -137,6 +153,7 @@ export default function TemplatesPage() {
     setIsDirty(false);
     setSaveAsNewOpen(false);
     setSaveAsNewName('');
+    setPreviewTab('pdf');
   };
 
   const handleSave = async () => {
@@ -145,9 +162,13 @@ export default function TemplatesPage() {
     try {
       await api.updateTemplate(previewTemplate.id, editedLatex);
       setIsDirty(false);
-      if (previewPdfUrl) { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }
       setPdfError(null);
       toast.success('Template saved');
+      if (previewTab === 'split') {
+        handleFetchPdf(previewTemplate.id);
+      } else {
+        if (previewPdfUrl) { URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }
+      }
     } catch {
       toast.error('Failed to save template');
     } finally {
@@ -393,7 +414,7 @@ export default function TemplatesPage() {
 
       {/* Preview dialog */}
       <Dialog open={previewOpen} onOpenChange={handleClosePreview}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className={previewTab === 'split' ? 'max-w-[92vw]' : 'max-w-4xl'}>
           <DialogHeader>
             <DialogTitle>{previewTemplate?.name ?? 'Loading…'}</DialogTitle>
           </DialogHeader>
@@ -412,8 +433,50 @@ export default function TemplatesPage() {
             >
               LaTeX Source
             </Button>
+            <Button
+              variant={previewTab === 'split' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setPreviewTab('split')}
+            >
+              Split
+            </Button>
           </div>
-          {previewTab === 'pdf' ? (
+          {previewTab === 'split' ? (
+            <div className="flex gap-3 h-[75vh]">
+              {/* Left: editor */}
+              <textarea
+                className="flex-1 bg-muted rounded p-4 text-xs font-mono resize-none border focus:outline-none focus:ring-1 focus:ring-ring"
+                value={editedLatex}
+                onChange={(e) => { setEditedLatex(e.target.value); setIsDirty(true); }}
+                spellCheck={false}
+              />
+              {/* Right: PDF */}
+              <div className="flex-1 flex flex-col">
+                {pdfLoading ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm rounded border bg-muted/30">
+                    Compiling PDF...
+                  </div>
+                ) : pdfError ? (
+                  <div className="space-y-2 overflow-auto">
+                    <div className="rounded border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                      {pdfError}
+                    </div>
+                    {pdfErrorDetail && (
+                      <pre className="bg-muted rounded p-3 text-xs overflow-auto max-h-[30vh] font-mono whitespace-pre-wrap">
+                        {pdfErrorDetail}
+                      </pre>
+                    )}
+                  </div>
+                ) : previewPdfUrl ? (
+                  <iframe src={previewPdfUrl} className="w-full h-full rounded border" title="PDF Preview" />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm rounded border bg-muted/30">
+                    Save to recompile
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : previewTab === 'pdf' ? (
             <div className="w-full h-[70vh]">
               {pdfLoading ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -472,7 +535,7 @@ export default function TemplatesPage() {
             )}
             <div className="flex w-full justify-between items-center gap-2">
               <Button variant="outline" onClick={handleClosePreview}>Close</Button>
-              {previewTab === 'source' && previewTemplate && (
+              {(previewTab === 'source' || previewTab === 'split') && previewTemplate && (
                 <div className="flex gap-2">
                   <Button
                     variant="outline" size="sm"
