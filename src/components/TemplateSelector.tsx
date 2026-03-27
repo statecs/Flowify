@@ -94,27 +94,30 @@ export default function TemplateSelector({ documentTypeId, value, onChange, disa
         </div>
       )}
 
-      <div className="flex items-center gap-3 mt-1">
+      <div className="flex items-center gap-0 mt-2">
         {selectedTemplate && (
-          <button
-            type="button"
-            onClick={() => {
-              setPreviewTemplateId(selectedTemplate.id);
-              setPreviewTemplateName(selectedTemplate.name);
-              setPreviewOpen(true);
-            }}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <Eye className="h-4 w-4" />
-            Preview Template
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewTemplateId(selectedTemplate.id);
+                setPreviewTemplateName(selectedTemplate.name);
+                setPreviewOpen(true);
+              }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Preview Template
+            </button>
+            <span className="mx-2.5 text-border select-none">|</span>
+          </>
         )}
         <button
           type="button"
           onClick={() => navigate('/templates')}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           New Template
         </button>
       </div>
