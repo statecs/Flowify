@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, ApiError, DocumentDetail, FieldDefinition } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -659,6 +659,12 @@ export default function ReviewPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Need a different template?{' '}
+                  <Link to="/templates" className="underline hover:text-foreground">
+                    Manage templates
+                  </Link>
+                </p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>Cancel</Button>

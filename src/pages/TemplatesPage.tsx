@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { api, ApiError, Template, DocumentType } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,11 @@ export default function TemplatesPage() {
   const [saveAsNewName, setSaveAsNewName] = useState('');
   const [isSavingNew, setIsSavingNew] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<{ id: string; name: string } | null>(null);
+  const [deleteBlockedOutputs, setDeleteBlockedOutputs] = useState<
+    Array<{ id: string; document_id: string; original_filename: string; created_at: string }> | null
+  >(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Upload form state
   const [uploadName, setUploadName] = useState('');
@@ -74,14 +80,29 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete template "${name}"?`)) return;
+  const handleDelete = (id: string, name: string) => {
+    setDeleteCandidate({ id, name });
+    setDeleteBlockedOutputs(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteCandidate) return;
+    setIsDeleting(true);
     try {
-      await api.deleteTemplate(id);
-      setTemplates(prev => prev.filter(t => t.id !== id));
+      await api.deleteTemplate(deleteCandidate.id);
+      setTemplates(prev => prev.filter(t => t.id !== deleteCandidate.id));
       toast.success('Template deleted');
-    } catch {
-      toast.error('Failed to delete template');
+      setDeleteCandidate(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.data as { outputs: Array<{ id: string; document_id: string; original_filename: string; created_at: string }> };
+        setDeleteBlockedOutputs(body.outputs ?? []);
+      } else {
+        toast.error('Failed to delete template');
+        setDeleteCandidate(null);
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -346,6 +367,50 @@ export default function TemplatesPage() {
           ))}
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={!!deleteCandidate}
+        onOpenChange={(open) => { if (!open) { setDeleteCandidate(null); setDeleteBlockedOutputs(null); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {deleteBlockedOutputs !== null ? "Template can't be deleted" : `Delete template "${deleteCandidate?.name}"?`}
+            </DialogTitle>
+          </DialogHeader>
+          {deleteBlockedOutputs !== null ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                This template is used by <strong>{deleteBlockedOutputs.length} generated CV{deleteBlockedOutputs.length !== 1 ? 's' : ''}</strong>. To delete it, first remove the following from the <strong>Generated CVs</strong> page:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                {deleteBlockedOutputs.map(o => (
+                  <li key={o.id}>
+                    <Link to={`/review/${o.document_id}`} className="underline hover:text-foreground">
+                      {o.original_filename}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+          )}
+          <DialogFooter>
+            {deleteBlockedOutputs !== null ? (
+              <Button variant="outline" onClick={() => { setDeleteCandidate(null); setDeleteBlockedOutputs(null); }}>Close</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setDeleteCandidate(null)}>Cancel</Button>
+                <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
+                  {isDeleting ? 'Deleting…' : 'Delete'}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Upload dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

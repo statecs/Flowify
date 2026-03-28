@@ -111,6 +111,21 @@ router.post('/', requireApiKey, templateUpload.single('file'), async (req, res) 
 
 router.delete('/:id', requireApiKey, async (req, res) => {
   try {
+    // Block deletion if outputs reference this template
+    const [outputRows] = await pool.query<RowDataPacket[]>(
+      `SELECT o.id, o.document_id, d.original_filename, o.created_at
+       FROM outputs o JOIN documents d ON o.document_id = d.id
+       WHERE o.template_id = ?`,
+      [req.params.id]
+    );
+    if ((outputRows as RowDataPacket[]).length > 0) {
+      res.status(409).json({
+        error: 'Template is in use by generated outputs',
+        outputs: outputRows,
+      });
+      return;
+    }
+
     const [result] = await pool.execute<ResultSetHeader>(
       'DELETE FROM templates WHERE id = ?',
       [req.params.id]
