@@ -22,6 +22,15 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body ?? {};
+  if (!password || password !== process.env.ADMIN_PASSWORD) {
+    res.status(401).json({ error: 'Invalid password' });
+    return;
+  }
+  res.json({ apiKey: process.env.ADMIN_API_KEY });
+});
+
 app.use('/', healthRouter);
 app.use('/api/document-types', documentTypesRouter);
 app.use('/api/templates', templatesRouter);

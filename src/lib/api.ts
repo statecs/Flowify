@@ -41,6 +41,13 @@ async function requestFile(path: string): Promise<Blob> {
 }
 
 export const api = {
+  // Auth
+  login: (password: string) =>
+    request<{ apiKey: string }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+
   // Document types
   getDocumentTypes: () => request<DocumentType[]>('/api/document-types'),
 

@@ -8,24 +8,22 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
-  const [key, setKey] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!key.trim()) return;
+    if (!password.trim()) return;
     setLoading(true);
     try {
-      localStorage.setItem('flowify_api_key', key.trim());
-      await api.getDocumentTypes();
-      login(key.trim());
+      const { apiKey } = await api.login(password.trim());
+      login(apiKey);
       navigate('/');
     } catch (err) {
-      localStorage.removeItem('flowify_api_key');
       if (err instanceof ApiError && err.status === 401) {
-        toast.error('Invalid API key');
+        toast.error('Invalid password');
       } else {
         toast.error('Could not connect to server');
       }
@@ -39,22 +37,22 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6 p-8 rounded-lg border bg-card shadow-sm">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Flowify</h1>
-          <p className="text-sm text-muted-foreground">Enter your API key to continue</p>
+          <p className="text-sm text-muted-foreground">Sign in to continue</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="key">API Key</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
-              id="key"
+              id="password"
               type="password"
-              placeholder="your-admin-api-key"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               autoFocus
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading || !key.trim()}>
-            {loading ? 'Connecting...' : 'Sign in'}
+          <Button type="submit" className="w-full" disabled={loading || !password.trim()}>
+            {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
       </div>
